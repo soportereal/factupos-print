@@ -14,10 +14,15 @@
 ;  Se COMPILA solo en GitHub Actions (windows-latest) — ver
 ;  .github/workflows/build.yml. No requiere Windows local.
 ;
-;  Nota: trae el .exe x64 y el x86; instala el que corresponde a la
-;  arquitectura de Windows, siempre con el nombre fijo factupos-print.exe
-;  (asi el autostart y el auto-update referencian un solo nombre).
+;  UN instalador POR ARQUITECTURA (no un bundle). Se compila dos veces:
+;     ISCC.exe /DARCH=x64 installer\factupos-print.iss  -> Factupos-Print-x64.exe
+;     ISCC.exe /DARCH=x86 installer\factupos-print.iss  -> Factupos-Print-x86.exe
 ; ============================================================================
+
+; Arquitectura del build (la define el workflow con /DARCH=...). Default x64.
+#ifndef ARCH
+  #define ARCH "x64"
+#endif
 
 #define MyAppName "FactuPOS Print"
 #define MyAppId "factupos-print"
@@ -37,14 +42,19 @@ DefaultDirName={autopf}\{#MyAppId}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=Output
-OutputBaseFilename=factupos-print-Setup-{#MyAppVersion}
+; Nombre del instalador SIN version, por arquitectura: Factupos-Print-x64.exe / -x86.exe
+OutputBaseFilename=Factupos-Print-{#ARCH}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=admin
-ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayName={#MyAppName}
 UninstallDisplayIcon={app}\{#MyAppExeName}
+#if ARCH == "x64"
+  ; El instalador x64 solo corre/instala en Windows de 64-bit.
+  ArchitecturesAllowed=x64compatible
+  ArchitecturesInstallIn64BitMode=x64compatible
+#endif
 
 [Languages]
 Name: "es"; MessagesFile: "compiler:Languages\Spanish.isl"
@@ -53,17 +63,18 @@ Name: "es"; MessagesFile: "compiler:Languages\Spanish.isl"
 Name: "startmenu"; Description: "Crear acceso directo en el menu Inicio"; GroupDescription: "Accesos directos:"; Flags: unchecked
 
 [Files]
-; Los .exe los genera PyInstaller (matriz x64 + x86) ANTES de compilar este
-; instalador; el workflow los copia junto a este .iss. Se instala SOLO el que
-; corresponde a la arquitectura, renombrado al nombre fijo factupos-print.exe.
-Source: "FactuPOS_Print.exe";     DestDir: "{app}"; DestName: "{#MyAppExeName}"; Flags: ignoreversion; Check: Is64BitInstallMode
-Source: "FactuPOS_Print-x86.exe"; DestDir: "{app}"; DestName: "{#MyAppExeName}"; Flags: ignoreversion; Check: not Is64BitInstallMode
-
-; SumatraPDF (visor portable usado por el modo DataReport para imprimir el PDF
-; de forma silenciosa: SumatraPDF.exe -print-to "imp" -silent). La app lo busca
-; primero en su propia carpeta {app}. El binario distribuido es x64 → se incluye
-; SOLO en el instalador de 64-bit (en 32-bit no correria y solo infla el paquete).
-Source: "SumatraPDF.exe"; DestDir: "{app}"; Flags: ignoreversion; Check: Is64BitInstallMode
+; El .exe de la arquitectura correspondiente (lo genera PyInstaller; el workflow
+; los copia junto a este .iss). Se instala con el nombre fijo factupos-print.exe
+; asi el autostart y el auto-update referencian un solo nombre.
+#if ARCH == "x64"
+Source: "FactuPOS_Print.exe"; DestDir: "{app}"; DestName: "{#MyAppExeName}"; Flags: ignoreversion
+; SumatraPDF (visor portable para imprimir el PDF del modo DataReport en silencio:
+; SumatraPDF.exe -print-to "imp" -silent). La app lo busca primero en {app}. El
+; binario distribuido es x64 -> solo se incluye en el instalador de 64-bit.
+Source: "SumatraPDF.exe"; DestDir: "{app}"; Flags: ignoreversion
+#else
+Source: "FactuPOS_Print-x86.exe"; DestDir: "{app}"; DestName: "{#MyAppExeName}"; Flags: ignoreversion
+#endif
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; Tasks: startmenu

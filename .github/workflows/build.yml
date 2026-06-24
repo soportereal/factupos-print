@@ -67,13 +67,17 @@ jobs:
       - name: Instalar Inno Setup
         run: choco install innosetup -y --no-progress
 
-      - name: Compilar instalador (Inno Setup)
+      - name: Compilar instalador x64 (Inno Setup)
         shell: cmd
-        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\factupos-print.iss'
+        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DARCH=x64 installer\factupos-print.iss'
 
-      - name: Subir instalador (Setup.exe)
+      - name: Compilar instalador x86 (Inno Setup)
+        shell: cmd
+        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DARCH=x86 installer\factupos-print.iss'
+
+      - name: Subir instaladores (x64 + x86)
         uses: actions/upload-artifact@v4
         with:
-          name: factupos-print-Setup
-          path: installer\Output\factupos-print-Setup-*.exe
+          name: factupos-print-installers
+          path: installer\Output\Factupos-Print-*.exe
           if-no-files-found: error
