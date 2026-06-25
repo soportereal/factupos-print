@@ -20,9 +20,11 @@ Dependencias: pyserial, pystray, pillow.
 
 import json
 import os
+import subprocess
 import sys
 import threading
 import time
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 try:
@@ -31,6 +33,15 @@ try:
 except Exception:
     serial = None
     list_ports = None
+
+# Version del Bridge Windows. Debe COINCIDIR con la publicada en el manifest
+# (bridge_windows_version.json) para no entrar en loop de auto-update.
+VERSION = "1.2"
+
+# Auto-update: el Bridge no se conecta a ningun server (es un HTTP local), asi
+# que chequea un manifest propio al arrancar y cada UPDATE_CHECK_INTERVAL.
+UPDATE_MANIFEST_URL = "https://factupos.com/downloads/bridge_windows_version.json"
+UPDATE_CHECK_INTERVAL = 6 * 3600  # 6 horas
 
 HOST = "127.0.0.1"
 PORT = 8765
@@ -165,7 +176,7 @@ def serial_send(data):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "FactuposPrintBridgeWin/1.0"
+    server_version = "FactuposPrintBridgeWin/" + VERSION
 
     def log_message(self, *a):
         pass
@@ -334,6 +345,75 @@ def run_tray():
     _TRAY_ICON.run()
 
 
+def _version_tuple(v):
+    """'1.2.3' -> (1,2,3) para comparar versiones numericamente."""
+    try:
+        return tuple(int(x) for x in str(v).strip().split("."))
+    except Exception:
+        return (0,)
+
+
+def _apply_update(new_version, url):
+    """Descargar el .exe nuevo y reemplazar el actual via updater.bat (silencioso)."""
+    try:
+        exe_name = os.path.basename(sys.executable)
+        new_exe = os.path.join(BASE_DIR, exe_name.replace(".exe", "_new.exe"))
+        log("Auto-update: descargando %s" % url)
+        urllib.request.urlretrieve(url, new_exe)
+
+        size = os.path.getsize(new_exe)
+        if size < 500000:  # < 0.5MB = probablemente un HTML de error, abortar
+            log("Auto-update: descarga muy pequena (%d bytes), abortando" % size)
+            try:
+                os.remove(new_exe)
+            except OSError:
+                pass
+            return
+
+        bat = os.path.join(BASE_DIR, "updater.bat")
+        with open(bat, "w", encoding="ascii") as f:
+            f.write("@echo off\r\n")
+            f.write("timeout /t 3 /nobreak >nul\r\n")
+            f.write('taskkill /f /im "%s" >nul 2>&1\r\n' % exe_name)
+            f.write('del "%s"\r\n' % exe_name)
+            f.write('ren "%s" "%s"\r\n' % (os.path.basename(new_exe), exe_name))
+            f.write('start "" "%s"\r\n' % exe_name)
+            f.write('del "%%~f0"\r\n')
+
+        log("Auto-update: aplicando v%s, reiniciando" % new_version)
+        subprocess.Popen(
+            ["cmd.exe", "/c", bat],
+            cwd=BASE_DIR,
+            creationflags=0x00000008,  # DETACHED_PROCESS
+            close_fds=True,
+        )
+        os._exit(0)
+    except Exception as e:
+        log("Auto-update error: %s" % e)
+
+
+def update_loop():
+    """Chequea el manifest al arrancar y cada UPDATE_CHECK_INTERVAL. Defensivo:
+    cualquier fallo se loguea y NO afecta al Bridge (sigue imprimiendo)."""
+    if not getattr(sys, "frozen", False):
+        return  # en modo script no se auto-actualiza
+    time.sleep(8)  # dejar que el server/tray levante primero
+    while True:
+        try:
+            req = urllib.request.Request(UPDATE_MANIFEST_URL,
+                                         headers={"Cache-Control": "no-cache"})
+            with urllib.request.urlopen(req, timeout=20) as r:
+                data = json.loads(r.read().decode("utf-8"))
+            latest = str(data.get("version", "")).strip()
+            url = str(data.get("downloadUrl", "")).strip()
+            if latest and url and _version_tuple(latest) > _version_tuple(VERSION):
+                log("Auto-update: nueva version %s (actual %s)" % (latest, VERSION))
+                _apply_update(latest, url)
+        except Exception as e:
+            log("Auto-update check: %s" % e)
+        time.sleep(UPDATE_CHECK_INTERVAL)
+
+
 def main():
     global CONFIG
     CONFIG = load_config()
@@ -348,6 +428,9 @@ def main():
 
     srv = ThreadingHTTPServer((HOST, PORT), Handler)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
+
+    # Auto-update en segundo plano (chequea manifest; no rompe si falla)
+    threading.Thread(target=update_loop, daemon=True).start()
 
     try:
         run_tray()

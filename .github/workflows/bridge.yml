@@ -7,6 +7,7 @@ on:
       - 'factupos_print_bridge_windows.py'
       - 'requirements-bridge.txt'
       - '.github/workflows/bridge.yml'
+      - 'installer/factupos-bridge.iss'
   workflow_dispatch:
 
 jobs:
@@ -42,4 +43,42 @@ jobs:
         with:
           name: FactuposPrintBridge-${{ matrix.arch }}
           path: dist/FactuposPrintBridge${{ matrix.suffix }}.exe
+          if-no-files-found: error
+
+  # Empaqueta los .exe del Bridge en instaladores por arquitectura (Inno Setup)
+  # con autostart (tray) + permisos para auto-update.
+  installer:
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Descargar .exe x64
+        uses: actions/download-artifact@v4
+        with:
+          name: FactuposPrintBridge-x64
+          path: installer
+
+      - name: Descargar .exe x86
+        uses: actions/download-artifact@v4
+        with:
+          name: FactuposPrintBridge-x86
+          path: installer
+
+      - name: Instalar Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Compilar instalador x64 (Inno Setup)
+        shell: cmd
+        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DARCH=x64 installer\factupos-bridge.iss'
+
+      - name: Compilar instalador x86 (Inno Setup)
+        shell: cmd
+        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DARCH=x86 installer\factupos-bridge.iss'
+
+      - name: Subir instaladores (x64 + x86)
+        uses: actions/upload-artifact@v4
+        with:
+          name: factupos-bridge-installers
+          path: installer\Output\Factupos-Bridge-*.exe
           if-no-files-found: error
