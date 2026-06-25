@@ -4,10 +4,8 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'factupos_print_bridge_windows.py'
-      - 'requirements-bridge.txt'
+      - 'bridge/**'
       - '.github/workflows/bridge.yml'
-      - 'installer/factupos-bridge.iss'
   workflow_dispatch:
 
 jobs:
@@ -33,10 +31,10 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-bridge.txt
+          pip install -r bridge/requirements-bridge.txt
 
       - name: Build .exe with PyInstaller (${{ matrix.arch }})
-        run: pyinstaller --onefile --windowed --name FactuposPrintBridge${{ matrix.suffix }} --hidden-import serial.tools.list_ports --hidden-import pystray._win32 factupos_print_bridge_windows.py
+        run: pyinstaller --onefile --windowed --name FactuposPrintBridge${{ matrix.suffix }} --hidden-import serial.tools.list_ports --hidden-import pystray._win32 bridge/factupos_print_bridge_windows.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -57,28 +55,28 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: FactuposPrintBridge-x64
-          path: installer
+          path: bridge/installer
 
       - name: Descargar .exe x86
         uses: actions/download-artifact@v4
         with:
           name: FactuposPrintBridge-x86
-          path: installer
+          path: bridge/installer
 
       - name: Instalar Inno Setup
         run: choco install innosetup -y --no-progress
 
       - name: Compilar instalador x64 (Inno Setup)
         shell: cmd
-        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DARCH=x64 installer\factupos-bridge.iss'
+        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DARCH=x64 bridge\installer\factupos-bridge.iss'
 
       - name: Compilar instalador x86 (Inno Setup)
         shell: cmd
-        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DARCH=x86 installer\factupos-bridge.iss'
+        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DARCH=x86 bridge\installer\factupos-bridge.iss'
 
       - name: Subir instaladores (x64 + x86)
         uses: actions/upload-artifact@v4
         with:
           name: factupos-bridge-installers
-          path: installer\Output\Factupos-Bridge-*.exe
+          path: bridge\installer\Output\Factupos-Bridge-*.exe
           if-no-files-found: error

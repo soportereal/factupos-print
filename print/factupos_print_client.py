@@ -882,7 +882,27 @@ def _print_json_datareport_single(json_data, printer_name='', copia_etiqueta='OR
 
     import tempfile
     import urllib.request
-    from reportlab.platypus import HRFlowable
+    from reportlab.platypus import HRFlowable, KeepTogether
+    from reportlab.pdfgen import canvas as _rl_canvas
+
+    # Lienzo con numeración "Página X de Y" al pie de cada hoja (caso #46/#72/#73)
+    class NumberedCanvas(_rl_canvas.Canvas):
+        def __init__(self, *a, **kw):
+            _rl_canvas.Canvas.__init__(self, *a, **kw)
+            self._saved_page_states = []
+        def showPage(self):
+            self._saved_page_states.append(dict(self.__dict__))
+            self._startPage()
+        def save(self):
+            n = len(self._saved_page_states)
+            for st in self._saved_page_states:
+                self.__dict__.update(st)
+                self.setFont("Helvetica", 7)
+                self.setFillColor(colors.HexColor('#666'))
+                self.drawRightString(letter[0] - 12*mm, 6*mm,
+                                     f"Página {self._pageNumber} de {n}")
+                _rl_canvas.Canvas.showPage(self)
+            _rl_canvas.Canvas.save(self)
 
     d = json_data
     emisor = d.get('emisor', {})
@@ -918,9 +938,9 @@ def _print_json_datareport_single(json_data, printer_name='', copia_etiqueta='OR
         s('N8', fontSize=8, fontName='Helvetica', spaceAfter=1, leading=10)
         s('N8B', fontSize=8, fontName='Helvetica-Bold', spaceAfter=1, leading=10)
         s('N7', fontSize=7, fontName='Helvetica', spaceAfter=0, leading=9)
-        s('T8', fontSize=8, fontName='Helvetica', spaceAfter=0, spaceBefore=0, leading=10)
-        s('T8R', fontSize=8, fontName='Helvetica', spaceAfter=0, spaceBefore=0, leading=10, alignment=TA_RIGHT)
-        s('T7', fontSize=7, fontName='Helvetica', spaceAfter=0, spaceBefore=0, leading=9, textColor=colors.black)
+        s('T8', fontSize=9, fontName='Helvetica', spaceAfter=0, spaceBefore=0, leading=11)
+        s('T8R', fontSize=9, fontName='Helvetica', spaceAfter=0, spaceBefore=0, leading=11, alignment=TA_RIGHT)
+        s('T7', fontSize=8, fontName='Helvetica', spaceAfter=0, spaceBefore=0, leading=10, textColor=colors.black)
         s('Label', fontSize=7, fontName='Helvetica-Bold', textColor=colors.HexColor('#666'), spaceAfter=0)
         s('CliNombre', fontSize=11, fontName='Helvetica-Bold', spaceAfter=2)
         s('TotalGrande', fontSize=14, fontName='Helvetica-Bold', alignment=TA_RIGHT, spaceBefore=3)
@@ -1153,7 +1173,7 @@ def _print_json_datareport_single(json_data, printer_name='', copia_etiqueta='OR
                         if det_line.strip():
                             tabla_data.append(['', Paragraph(f"<b>{det_line.strip()}</b>", styles['T8']), '', '', '', ''])
                 # Fila 2: detalle concatenado (colspan=6)
-                partes = [f"Cabys: {cabys}", f"C\u00f3digo: {codigo}", f"Unidad: {unidad}"]
+                partes = [f"C\u00f3digo: {codigo}", f"Cabys: {cabys}", f"Unidad: {unidad}"]
                 if not param_344:
                     partes.append(f"Desc monto: {fmt(desc_monto)}")
                 partes.append(f"Gravado: {fmt(grav)}")
@@ -1422,15 +1442,15 @@ def _print_json_datareport_single(json_data, printer_name='', copia_etiqueta='OR
             for cuenta in cuentas:
                 el.append(Paragraph(cuenta, styles['N7']))
 
-        # ── PIE ──
-        el.append(Spacer(1, 4*mm))
+        # ── PIE (se mantiene junto: no se parte "Recibido Conforme"/legal entre hojas) ──
+        pie_block = [Spacer(1, 4*mm)]
 
         if tipo_doc == 'proforma':
-            el.append(Paragraph('<b>DOCUMENTO SIN VALOR FISCAL</b>', styles['PieBold']))
-            el.append(Paragraph('LOS PRECIOS ESTÁN SUJETOS A CAMBIO SIN PREVIO AVISO', styles['Pie']))
+            pie_block.append(Paragraph('<b>DOCUMENTO SIN VALOR FISCAL</b>', styles['PieBold']))
+            pie_block.append(Paragraph('LOS PRECIOS ESTÁN SUJETOS A CAMBIO SIN PREVIO AVISO', styles['Pie']))
         else:
-            el.append(Spacer(1, 8*mm))
-            el.append(Paragraph('_' * 60, styles['N7']))
+            pie_block.append(Spacer(1, 8*mm))
+            pie_block.append(Paragraph('_' * 60, styles['N7']))
             gen_texto = f"Generado por FactuPOS | {time.strftime('%d/%m/%Y %H:%M:%S')}"
             pie_data = [['RECIBIDO CONFORME / NOMBRE / CÉDULA', gen_texto]]
             pie_tabla = Table(pie_data, colWidths=[pw * 0.5, pw * 0.5])
@@ -1441,22 +1461,24 @@ def _print_json_datareport_single(json_data, printer_name='', copia_etiqueta='OR
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
                 ('TOPPADDING', (0, 0), (-1, -1), 0),
             ]))
-            el.append(pie_tabla)
+            pie_block.append(pie_tabla)
             # Condiciones de venta (param 139)
             condiciones = d.get('condiciones_venta', '')
             if condiciones:
-                el.append(Spacer(1, 2*mm))
-                el.append(Paragraph(condiciones, styles['Pie']))
+                pie_block.append(Spacer(1, 2*mm))
+                pie_block.append(Paragraph(condiciones, styles['Pie']))
             # Resolución (param 123)
             resolucion = d.get('resolucion', '')
             if resolucion:
-                el.append(Paragraph(resolucion, styles['Pie']))
+                pie_block.append(Paragraph(resolucion, styles['Pie']))
 
         # Etiqueta ORIGINAL/COPIA
-        el.append(Spacer(1, 3*mm))
-        el.append(Paragraph(f"<b>{copia_etiqueta}</b>", styles['PieBold']))
+        pie_block.append(Spacer(1, 3*mm))
+        pie_block.append(Paragraph(f"<b>{copia_etiqueta}</b>", styles['PieBold']))
 
-        doc.build(el)
+        el.append(KeepTogether(pie_block))
+
+        doc.build(el, canvasmaker=NumberedCanvas)
 
     except Exception as e:
         return False, f"Error generando PDF: {e}"

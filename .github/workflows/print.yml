@@ -1,8 +1,11 @@
-name: Build Windows EXE
+name: Build Print Windows EXE
 
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'print/**'
+      - '.github/workflows/print.yml'
   workflow_dispatch:
 
 jobs:
@@ -28,10 +31,10 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-build.txt
+          pip install -r print/requirements-build.txt
 
       - name: Build .exe with PyInstaller (${{ matrix.arch }})
-        run: pyinstaller --onefile --windowed --name FactuPOS_Print${{ matrix.suffix }} factupos_print_client.py
+        run: pyinstaller --onefile --windowed --name FactuPOS_Print${{ matrix.suffix }} print/factupos_print_client.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -40,8 +43,8 @@ jobs:
           path: dist/FactuPOS_Print${{ matrix.suffix }}.exe
           if-no-files-found: error
 
-  # Empaqueta los dos .exe en un instalador unico (Inno Setup) con autostart
-  # oculto + permisos para auto-update. Corre despues de compilar ambos.
+  # Empaqueta los dos .exe en instaladores por arquitectura (Inno Setup) con
+  # autostart oculto + permisos para auto-update. Corre despues de compilar ambos.
   installer:
     needs: build
     runs-on: windows-latest
@@ -52,32 +55,32 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: FactuPOS_Print-x64
-          path: installer
+          path: print/installer
 
       - name: Descargar .exe x86
         uses: actions/download-artifact@v4
         with:
           name: FactuPOS_Print-x86
-          path: installer
+          path: print/installer
 
       - name: Descargar SumatraPDF (para modo DataReport, x64)
         shell: pwsh
-        run: Invoke-WebRequest -Uri "https://soportereal.com/software/factupos-app/windows/SumatraPDF.exe" -OutFile "installer/SumatraPDF.exe"
+        run: Invoke-WebRequest -Uri "https://soportereal.com/software/factupos-app/windows/SumatraPDF.exe" -OutFile "print/installer/SumatraPDF.exe"
 
       - name: Instalar Inno Setup
         run: choco install innosetup -y --no-progress
 
       - name: Compilar instalador x64 (Inno Setup)
         shell: cmd
-        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DARCH=x64 installer\factupos-print.iss'
+        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DARCH=x64 print\installer\factupos-print.iss'
 
       - name: Compilar instalador x86 (Inno Setup)
         shell: cmd
-        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DARCH=x86 installer\factupos-print.iss'
+        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DARCH=x86 print\installer\factupos-print.iss'
 
       - name: Subir instaladores (x64 + x86)
         uses: actions/upload-artifact@v4
         with:
           name: factupos-print-installers
-          path: installer\Output\Factupos-Print-*.exe
+          path: print\installer\Output\Factupos-Print-*.exe
           if-no-files-found: error

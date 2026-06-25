@@ -1,0 +1,40 @@
+name: Build Fingerprint Windows Installer
+
+# Empaqueta el instalador de FactuPOS Biometria (Huella Digital) a partir de
+# los binarios YA COMPILADOS (C#/.NET) que viven en el ZIP publicado. NO compila
+# C# (no hay SDK aqui): baja el ZIP, lo extrae e Inno Setup lo empaqueta.
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'fingerprint/**'
+      - '.github/workflows/fingerprint.yml'
+  workflow_dispatch:
+
+jobs:
+  installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Descargar y extraer el ZIP de binarios (v1.0.3)
+        shell: pwsh
+        run: |
+          $zip = "fp.zip"
+          Invoke-WebRequest -Uri "https://soportereal.com/software/factupos-app/windows/factupos-fingerprint-windows_v1.0.3.zip" -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath "fingerprint/installer/fp" -Force
+          Get-ChildItem -Recurse fingerprint/installer/fp | Select-Object FullName, Length
+
+      - name: Instalar Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Compilar instalador (Inno Setup)
+        shell: cmd
+        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" fingerprint\installer\factupos-fingerprint.iss'
+
+      - name: Subir instalador
+        uses: actions/upload-artifact@v4
+        with:
+          name: factupos-fingerprint-installer
+          path: fingerprint\installer\Output\Factupos-Fingerprint-x64.exe
+          if-no-files-found: error

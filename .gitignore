@@ -3,6 +3,9 @@ dist/
 __pycache__/
 *.spec
 *.pyc
-# Artefactos generados por CI dentro de installer/ (los .exe los baja Actions)
-installer/*.exe
-installer/Output/
+# Artefactos generados por CI dentro de cada <app>/installer/ (los .exe/zip los
+# baja/genera Actions; el instalador queda en Output/).
+**/installer/*.exe
+**/installer/Output/
+# Binarios del fingerprint extraidos del ZIP en CI
+fingerprint/installer/fp/
