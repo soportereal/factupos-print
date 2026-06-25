@@ -52,6 +52,16 @@ else:
 CONFIG_FILE = os.path.join(APP_DIR, 'config.json')
 LOG_FILE = os.path.join(APP_DIR, 'print_client.log')
 
+# Auto-update en Linux: el .deb instala el .py crudo (no es un binario frozen),
+# así que NO se puede usar el flujo de Windows (.exe + updater.bat). En su lugar
+# se reemplaza el propio .py en sitio (el postinst deja /opt/factupos-print en
+# chmod 777 → escribible sin sudo) y el proceso se re-lanza.
+# OJO: el server WS anuncia la versión leyendo el manifest print_client_version.json
+# y manda un único downloadUrl (el .exe de Windows). En Linux ese downloadUrl se
+# IGNORA y se baja el .py de esta URL fija. El .py publicado acá DEBE ir en la
+# misma versión que el manifest, o el cliente entra en loop de update.
+LINUX_UPDATE_URL = 'https://factupos.com/downloads/factupos_print_client.py'
+
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
@@ -103,7 +113,7 @@ except ImportError:
     HAS_TRAY = False
     log.warning("pystray/Pillow no disponible — sin bandeja del sistema")
 
-VERSION = "4.47"  # 4.47: formato factura FIPVIVI005 — numeracion "Pagina X de Y", Codigo antes de Cabys, letra mas grande en detalle, "Recibido Conforme"/legal/ORIGINAL no se parte entre hojas (KeepTogether). 4.46: instalador Windows (Inno Setup) — autostart oculto + auto-update sin UAC (icacls Modify); se quitaron los checkboxes Auto-ocultar/Iniciar con el sistema (los maneja el instalador); arranque oculto con flag --hidden. 4.45: paridad con Linux — boton Probar (ticket A/B + cajon + corte), tipo de letra Epson A/B por impresora, look navy + version grande, letra grande. Conserva fix hashlib + barcode128 GDI propios de Windows.
+VERSION = "4.49"  # 4.49: auto-update en LINUX — el .deb instala el .py crudo (no frozen) asi que el flujo Windows (.exe+updater.bat) no aplicaba; ahora en Linux se baja el .py de factupos.com/downloads, se valida version+integridad, se reemplaza en sitio (/opt es 777, sin sudo) y el proceso se re-lanza desacoplado. El server WS no cambia (anuncia latestVersion del manifest); en Linux se ignora el downloadUrl del .exe. AL PUBLICAR: subir el .py a downloads/ en la MISMA version del manifest. 4.48: factura FIPVIVI005 — la etiqueta ORIGINAL/COPIA la decide el SERVIDOR (PHP) y manda un trabajo por hoja con json 'copia_etiqueta' (vacio = sin etiqueta; respeta el parametro 394). La app ya no itera copias ni rotula: imprime lo que le llega. Compat con web vieja (json 'copias' -> itera/rotula). 4.47: formato factura FIPVIVI005 — numeracion "Pagina X de Y", Codigo antes de Cabys, letra mas grande en detalle, "Recibido Conforme"/legal/ORIGINAL no se parte entre hojas (KeepTogether). 4.46: instalador Windows (Inno Setup) — autostart oculto + auto-update sin UAC (icacls Modify); se quitaron los checkboxes Auto-ocultar/Iniciar con el sistema (los maneja el instalador); arranque oculto con flag --hidden. 4.45: paridad con Linux — boton Probar (ticket A/B + cajon + corte), tipo de letra Epson A/B por impresora, look navy + version grande, letra grande. Conserva fix hashlib + barcode128 GDI propios de Windows.
 # Fix ReportLab con Python/_hashlib viejo: algunas versiones de ReportLab llaman
 # hashlib.md5(data, usedforsecurity=False) para los IDs de objetos del PDF, pero
 # el openssl_md5 del build congelado no acepta ese keyword y rompe la generación
@@ -863,6 +873,13 @@ def _print_json_datareport(json_data, printer_name=''):
     if not HAS_REPORTLAB:
         return False, "reportlab no instalado"
 
+    # Nuevo (server-driven): el servidor (PHP) decide la etiqueta ORIGINAL/COPIA
+    # y manda UN trabajo por hoja a la cola. La app solo imprime lo que le llega.
+    if 'copia_etiqueta' in json_data:
+        etiqueta = json_data.get('copia_etiqueta', '')  # '' = sin etiqueta
+        return _print_json_datareport_single(json_data, printer_name, etiqueta)
+
+    # Compatibilidad (web vieja): manda 'copias=N' y la app rotula/itera.
     copias = max(1, int(json_data.get('copias', 1)))
     total_impresiones = copias  # copias = total hojas (1=solo original, 2=original+copia)
     resultados = []
@@ -1472,9 +1489,11 @@ def _print_json_datareport_single(json_data, printer_name='', copia_etiqueta='OR
             if resolucion:
                 pie_block.append(Paragraph(resolucion, styles['Pie']))
 
-        # Etiqueta ORIGINAL/COPIA
-        pie_block.append(Spacer(1, 3*mm))
-        pie_block.append(Paragraph(f"<b>{copia_etiqueta}</b>", styles['PieBold']))
+        # Etiqueta ORIGINAL/COPIA — el TEXTO lo decide el servidor (PHP).
+        # Vacío = no se imprime ninguna etiqueta (lo decide el lado del server, no la app).
+        if copia_etiqueta:
+            pie_block.append(Spacer(1, 3*mm))
+            pie_block.append(Paragraph(f"<b>{copia_etiqueta}</b>", styles['PieBold']))
 
         el.append(KeepTogether(pie_block))
 
@@ -2333,10 +2352,16 @@ class PrintQueueClient:
             self._log(f"Error enviando ACK: {e}", 'error')
 
     def _auto_update(self, new_version, download_url):
-        """Descargar nueva versión y reemplazar el .exe silenciosamente."""
+        """Descargar nueva versión y reemplazarse silenciosamente."""
         if self._update_checked:
             return
         self._update_checked = True
+
+        if IS_LINUX:
+            # En Linux se reemplaza el .py en sitio + re-exec (ignora download_url
+            # del server, que apunta al .exe de Windows).
+            self._auto_update_linux(new_version)
+            return
 
         if not getattr(sys, 'frozen', False):
             self._log(f"Auto-update: modo script, no se puede actualizar automáticamente")
@@ -2388,6 +2413,87 @@ del "%~f0"
 
         except Exception as e:
             self._log(f"Auto-update error: {e}", 'error')
+
+    def _auto_update_linux(self, new_version):
+        """Linux: bajar el .py nuevo, reemplazarlo en sitio y re-lanzar el proceso.
+
+        El .deb instala el script en /opt/factupos-print (chmod 777 → escribible
+        sin sudo). Se descarga a un temporal, se valida que sea el script correcto
+        y de la versión anunciada (evita loops), se reemplaza atómicamente y se
+        relanza un proceso desacoplado que espera a que este muera (libera tray /
+        sockets) y arranca la versión nueva.
+        """
+        script_path = os.path.abspath(__file__)
+        target_dir = os.path.dirname(script_path)
+        tmp_path = os.path.join(target_dir, 'factupos_print_client_new.py')
+        try:
+            self._log(f"Auto-update Linux: descargando {LINUX_UPDATE_URL} ...")
+            urllib.request.urlretrieve(LINUX_UPDATE_URL, tmp_path)
+
+            file_size = os.path.getsize(tmp_path)
+            with open(tmp_path, 'r', encoding='utf-8', errors='replace') as f:
+                content = f.read()
+
+            # Validar: tamaño razonable + que sea el script (no un HTML de error)
+            if (file_size < 50_000 or 'VERSION' not in content
+                    or 'def main' not in content
+                    or '<html' in content[:500].lower()):
+                self._log(f"Auto-update: descarga inválida ({file_size} bytes), abortando", 'error')
+                self._safe_remove(tmp_path)
+                return
+
+            # Confirmar que la versión bajada coincide con la anunciada (anti-loop)
+            downloaded_ver = ''
+            for ln in content.splitlines():
+                s = ln.strip()
+                if s.startswith('VERSION') and '=' in s:
+                    seg = s.split('=', 1)[1]
+                    for q in ('"', "'"):
+                        if q in seg:
+                            parts = seg.split(q)
+                            if len(parts) >= 2:
+                                downloaded_ver = parts[1]
+                            break
+                    break
+            if downloaded_ver != new_version:
+                self._log(f"Auto-update: versión bajada '{downloaded_ver}' != anunciada "
+                          f"'{new_version}'; abortando para evitar loop", 'error')
+                self._safe_remove(tmp_path)
+                return
+
+            self._log(f"Descargado OK ({file_size:,} bytes). Actualizando a v{new_version} y reiniciando...")
+            os.replace(tmp_path, script_path)  # atómico (mismo filesystem)
+
+            # Relanzador desacoplado: espera 2s a que este proceso muera (libera el
+            # icono de bandeja y los sockets) y ejecuta el script actualizado con
+            # el mismo intérprete y argumentos. close_fds + nueva sesión = no hereda
+            # descriptores ni queda atado a este proceso.
+            relaunch = (
+                "import os, sys, time; time.sleep(2); "
+                f"os.execv({sys.executable!r}, "
+                f"[{sys.executable!r}, {script_path!r}] + {list(sys.argv[1:])!r})"
+            )
+            subprocess.Popen(
+                [sys.executable, '-c', relaunch],
+                cwd=target_dir,
+                start_new_session=True,
+                close_fds=True,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            os._exit(0)
+
+        except Exception as e:
+            self._log(f"Auto-update Linux error: {e}", 'error')
+            self._safe_remove(tmp_path)
+
+    @staticmethod
+    def _safe_remove(path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
     def on_error(self, ws, error):
         self._log(f"WS Error: {error}", 'error')
