@@ -113,7 +113,23 @@ except ImportError:
     HAS_TRAY = False
     log.warning("pystray/Pillow no disponible — sin bandeja del sistema")
 
-VERSION = "4.49"  # 4.49: auto-update en LINUX — el .deb instala el .py crudo (no frozen) asi que el flujo Windows (.exe+updater.bat) no aplicaba; ahora en Linux se baja el .py de factupos.com/downloads, se valida version+integridad, se reemplaza en sitio (/opt es 777, sin sudo) y el proceso se re-lanza desacoplado. El server WS no cambia (anuncia latestVersion del manifest); en Linux se ignora el downloadUrl del .exe. AL PUBLICAR: subir el .py a downloads/ en la MISMA version del manifest. 4.48: factura FIPVIVI005 — la etiqueta ORIGINAL/COPIA la decide el SERVIDOR (PHP) y manda un trabajo por hoja con json 'copia_etiqueta' (vacio = sin etiqueta; respeta el parametro 394). La app ya no itera copias ni rotula: imprime lo que le llega. Compat con web vieja (json 'copias' -> itera/rotula). 4.47: formato factura FIPVIVI005 — numeracion "Pagina X de Y", Codigo antes de Cabys, letra mas grande en detalle, "Recibido Conforme"/legal/ORIGINAL no se parte entre hojas (KeepTogether). 4.46: instalador Windows (Inno Setup) — autostart oculto + auto-update sin UAC (icacls Modify); se quitaron los checkboxes Auto-ocultar/Iniciar con el sistema (los maneja el instalador); arranque oculto con flag --hidden. 4.45: paridad con Linux — boton Probar (ticket A/B + cajon + corte), tipo de letra Epson A/B por impresora, look navy + version grande, letra grande. Conserva fix hashlib + barcode128 GDI propios de Windows.
+VERSION = "4.50"  # 4.50: auto-update SOLO si el server reporta version MAYOR (antes era '!=', que hacia downgrade/loop si el manifest quedaba atras). Nuevo helper _version_gt compara por componentes numericos. 4.49: auto-update en LINUX — el .deb instala el .py crudo (no frozen) asi que el flujo Windows (.exe+updater.bat) no aplicaba; ahora en Linux se baja el .py de factupos.com/downloads, se valida version+integridad, se reemplaza en sitio (/opt es 777, sin sudo) y el proceso se re-lanza desacoplado. El server WS no cambia (anuncia latestVersion del manifest); en Linux se ignora el downloadUrl del .exe. AL PUBLICAR: subir el .py a downloads/ en la MISMA version del manifest. 4.48: factura FIPVIVI005 — la etiqueta ORIGINAL/COPIA la decide el SERVIDOR (PHP) y manda un trabajo por hoja con json 'copia_etiqueta' (vacio = sin etiqueta; respeta el parametro 394). La app ya no itera copias ni rotula: imprime lo que le llega. Compat con web vieja (json 'copias' -> itera/rotula). 4.47: formato factura FIPVIVI005 — numeracion "Pagina X de Y", Codigo antes de Cabys, letra mas grande en detalle, "Recibido Conforme"/legal/ORIGINAL no se parte entre hojas (KeepTogether). 4.46: instalador Windows (Inno Setup) — autostart oculto + auto-update sin UAC (icacls Modify); se quitaron los checkboxes Auto-ocultar/Iniciar con el sistema (los maneja el instalador); arranque oculto con flag --hidden. 4.45: paridad con Linux — boton Probar (ticket A/B + cajon + corte), tipo de letra Epson A/B por impresora, look navy + version grande, letra grande. Conserva fix hashlib + barcode128 GDI propios de Windows.
+def _version_gt(remote, local):
+    """True solo si la version 'remote' (la que reporta el server) es ESTRICTAMENTE
+    MAYOR que 'local' (la del cliente). Compara por componentes numericos
+    ('4.49' -> (4, 49)). Asi el cliente NUNCA hace downgrade ni entra en loop de
+    actualizacion cuando el server reporta una version igual o anterior a la suya."""
+    def _t(v):
+        try:
+            return tuple(int(p) for p in str(v).strip().split('.'))
+        except (ValueError, AttributeError):
+            return ()
+    rt, lt = _t(remote), _t(local)
+    if not rt:
+        return False  # version remota ilegible -> no actualizar
+    return rt > lt
+
+
 # Fix ReportLab con Python/_hashlib viejo: algunas versiones de ReportLab llaman
 # hashlib.md5(data, usedforsecurity=False) para los IDs de objetos del PDF, pero
 # el openssl_md5 del build congelado no acepta ese keyword y rompe la generación
@@ -2173,9 +2189,13 @@ class PrintQueueClient:
             self._log(f"Registrado OK como '{msg.get('clientId')}'")
             latest = msg.get('latestVersion', '')
             download_url = msg.get('downloadUrl', '')
-            if latest and download_url and latest != VERSION:
+            # Solo actualizar si el SERVER reporta una version MAYOR que la del cliente
+            # (nunca downgrade ni "distinta" -> evita el loop si el server quedo atras).
+            if latest and download_url and _version_gt(latest, VERSION):
                 self._log(f"Nueva versión disponible: {latest} (actual: {VERSION})")
                 threading.Thread(target=self._auto_update, args=(latest, download_url), daemon=True).start()
+            elif latest and latest != VERSION:
+                self._log(f"Server reporta v{latest} pero el cliente ya está en v{VERSION}; no se actualiza.")
         elif action == 'print':
             self._handle_print_job(ws, msg)
         elif action == 'ack_received':
