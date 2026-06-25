@@ -12,7 +12,9 @@ bridge/       Print Bridge HTTP/Bluetooth COM (Python). Workflow: bridge.yml
               -> instaladores Factupos-Bridge-x64.exe / -x86.exe
 fingerprint/  Biometria / Huella Digital (C#/.NET, binarios prebuilt). Workflow: fingerprint.yml
               -> instalador Factupos-Fingerprint-x64.exe (empaqueta el ZIP publicado)
-.github/workflows/   print.yml, bridge.yml, fingerprint.yml
+backup/       Respaldo de BD SQL Server (Python 3.11). Workflow: backup.yml
+              -> FactuposBackup.exe (GUI+tray) + FactuposBackupCLI.exe (consola/tarea)
+.github/workflows/   print.yml, bridge.yml, fingerprint.yml, backup.yml
 ```
 
 Cada app tiene su `installer/<app>.iss` (Inno Setup). Los instaladores configuran

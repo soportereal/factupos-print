@@ -1,0 +1,5 @@
+# Dependencias para compilar FactuposBackup (Windows .exe)
+pyodbc>=5.0.1
+pystray>=0.19.5
+Pillow>=10.0.0
+pyinstaller==6.6.0

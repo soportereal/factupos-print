@@ -1,0 +1,166 @@
+============================================================================
+ FactuposBackup — Respaldo automático SQL Server con interfaz gráfica
+============================================================================
+
+QUÉ HACE
+--------
+App residente en la bandeja de Windows que respalda TODAS las bases de datos
+del SQL Server, las comprime a ZIP y se dispara automáticamente todos los
+días a la hora configurada (default 23:00).
+
+Muestra en vivo el avance: tabla con cada BD (Pendiente → Respaldando →
+Comprimiendo → OK / FALLA), barra de progreso, log en tiempo real.
+
+
+ARCHIVOS DE ESTA CARPETA
+------------------------
+  backup_app.py         App gráfica (fuente)
+  backup_core.py        Motor compartido
+  backup_cli.py         CLI alternativo (fuente)
+  config.json           Configuración default (se sobreescribe al guardar)
+  requirements.txt      Dependencias Python
+  compilar.bat          Compilar a EXE (Windows)
+  LEEME.txt             Este archivo
+  dist\                 Salida de la compilación
+    FactuposBackup.exe       (la app gráfica)
+    FactuposBackupCLI.exe    (la CLI, opcional)
+
+
+COMPILAR LOS EXE (UNA SOLA VEZ)
+-------------------------------
+En cualquier máquina Windows con Python 3.9+ instalado:
+
+  1. Abrir CMD o PowerShell en esta carpeta.
+  2. Doble click en compilar.bat (o ejecutar desde CMD).
+  3. Espera 1-3 minutos. Genera dist\FactuposBackup.exe.
+
+Tamaño aproximado del .exe: 25-35 MB (incluye Python + tkinter + PIL +
+pystray + pyodbc, todo embebido).
+
+
+DEPLOYAR EN CADA SQL SERVER
+---------------------------
+1. En el server, instala "Microsoft ODBC Driver 17 o 18 for SQL Server":
+   https://learn.microsoft.com/sql/connect/odbc/download-odbc-driver-for-sql-server
+
+2. Copia el archivo:
+       dist\FactuposBackup.exe
+   a una carpeta del server, por ejemplo:
+       C:\FactuposBackup\
+
+3. Doble click en FactuposBackup.exe.
+
+4. Llena la sección "Configuración":
+     - Servidor SQL    (ej: 192.168.7.38, o localhost\SQLEXPRESS)
+     - Usuario         (ej: sa)
+     - Password        (oculto, click "Mostrar" para verificar)
+     - Ruta backup     (default R:\BACKUPTEMP, click "..." para elegir)
+     - Hora diaria     (default 23:00, formato HH:MM 24h)
+     - Retención días  (default 7, 0 = no borra nada antiguo)
+     [X] Iniciar con Windows
+     [X] Iniciar minimizado en la bandeja del sistema
+
+5. Click en "Probar conexión".
+   Debe mostrar: "Conexión exitosa, N BDs encontradas."
+
+6. Click en "Guardar configuración".
+
+7. Click en "▶ Ejecutar respaldo ahora" para validar la primera corrida.
+   La tabla muestra cada BD avanzando en tiempo real.
+
+8. Cierra la ventana. La X la oculta a la bandeja (no cierra la app).
+   El icono "SQL" queda en la bandeja, dispara solo a las 23:00 todos los
+   días, y vuelve a salir solo al iniciar Windows (porque marcaste autostart).
+
+
+COMPORTAMIENTO DE LA APP
+------------------------
+  - X cierra a bandeja, no termina la app.
+  - Click derecho en el icono de bandeja:
+        Mostrar ventana
+        Ejecutar respaldo ahora
+        Salir
+  - Doble click en el icono = mostrar ventana.
+  - Si marcaste "Iniciar con Windows", se registra en
+        HKCU\Software\Microsoft\Windows\CurrentVersion\Run
+    con la clave "FactuposBackup" y arranca al login del usuario.
+  - Si además marcaste "Iniciar minimizado", arranca directo a la bandeja
+    sin mostrar la ventana.
+
+
+IMPORTANTE: RUTA DE BACKUP
+--------------------------
+R:\BACKUPTEMP es una ruta del filesystem DEL SQL SERVER, no del cliente.
+SQL Server escribe el .bak con la cuenta del servicio MSSQLSERVER, así que
+ese servicio debe tener permisos de escritura ahí.
+
+Por eso lo más limpio es correr la app EN EL MISMO SERVIDOR donde está SQL.
+
+Si necesitás correr la app en otra máquina, usá una ruta UNC visible para
+el servicio SQL (ej: \\srv\backups$\).
+
+
+CLI (ALTERNATIVA SIN UI)
+------------------------
+FactuposBackupCLI.exe comparte el mismo config.json que la app gráfica.
+
+  FactuposBackupCLI.exe --setup            Configurar interactivo
+  FactuposBackupCLI.exe --list             Listar BDs
+  FactuposBackupCLI.exe                    Ejecutar respaldo
+  FactuposBackupCLI.exe --show-config      Ver config (password enmascarado)
+  FactuposBackupCLI.exe --set-path "D:\..." Cambiar solo la ruta
+  FactuposBackupCLI.exe --set-password "..." Cambiar solo el password
+
+
+LOG
+---
+FactuposBackup.log al lado del .exe. Cada corrida agrega un bloque:
+
+  2026-05-13 23:00:01 [INFO] Inicio backup — servidor=192.168.7.38 ruta=R:\BACKUPTEMP
+  2026-05-13 23:00:02 [INFO] Bases a respaldar: 27
+  2026-05-13 23:00:02 [INFO] [factupos] BACKUP …
+  2026-05-13 23:00:34 [INFO]   OK .bak 1.2 GB en 31.8s
+  2026-05-13 23:00:55 [INFO]   ZIP 280.1 MB (-77%) en 21.2s
+  ...
+  2026-05-13 23:42:11 [INFO] FIN — OK=27 FAIL=0 .bak=24.5 GB .zip=5.8 GB
+
+
+EXCLUIR / INCLUIR BDs ESPECÍFICAS
+---------------------------------
+Editar config.json al lado del .exe:
+
+  "exclude_dbs": ["master", "tempdb", "model", "msdb", "alguna_que_no_quiero"],
+  "include_dbs": []
+
+Si "include_dbs" tiene nombres, SOLO se respaldan esas (ignora exclude_dbs).
+
+
+SEGURIDAD DEL config.json
+-------------------------
+El password queda en texto plano. Restringí permisos NTFS:
+
+  icacls "C:\FactuposBackup\config.json" /inheritance:r ^
+         /grant:r "SYSTEM:(R)" "Administrators:(F)"
+
+
+PROBLEMAS COMUNES
+-----------------
+"No hay ODBC Driver para SQL Server"
+    Instala Microsoft ODBC Driver 17 o 18 (link arriba) y reiniciá la app.
+
+"Login failed for user 'sa'"
+    Verifica usuario/password. Probá los mismos en SSMS para descartar.
+    Asegurate que SQL Server permite "SQL Server Authentication" (Mixed
+    Mode), no solo Windows Authentication.
+
+"Cannot open backup device 'R:\BACKUPTEMP\...'. Operating system error 5
+(Access is denied)"
+    La cuenta del servicio MSSQLSERVER no puede escribir en R:\BACKUPTEMP.
+    Dale permisos de escritura a esa cuenta sobre la carpeta.
+
+La tarea no se dispara a las 23:00
+    La app debe estar corriendo (en bandeja) cuando llegue la hora. Si
+    cerraste con "Salir", no se dispara. Por eso la X cierra a bandeja, no
+    a la app. Verifica que el icono esté en la bandeja a esa hora.
+
+============================================================================

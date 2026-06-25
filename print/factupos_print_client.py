@@ -103,7 +103,7 @@ except ImportError:
     HAS_TRAY = False
     log.warning("pystray/Pillow no disponible — sin bandeja del sistema")
 
-VERSION = "4.46"  # 4.46: instalador Windows (Inno Setup) — autostart oculto + auto-update sin UAC (icacls Modify); se quitaron los checkboxes Auto-ocultar/Iniciar con el sistema (los maneja el instalador); arranque oculto con flag --hidden. 4.45: paridad con Linux — boton Probar (ticket A/B + cajon + corte), tipo de letra Epson A/B por impresora, look navy + version grande, letra grande. Conserva fix hashlib + barcode128 GDI propios de Windows.
+VERSION = "4.47"  # 4.47: formato factura FIPVIVI005 — numeracion "Pagina X de Y", Codigo antes de Cabys, letra mas grande en detalle, "Recibido Conforme"/legal/ORIGINAL no se parte entre hojas (KeepTogether). 4.46: instalador Windows (Inno Setup) — autostart oculto + auto-update sin UAC (icacls Modify); se quitaron los checkboxes Auto-ocultar/Iniciar con el sistema (los maneja el instalador); arranque oculto con flag --hidden. 4.45: paridad con Linux — boton Probar (ticket A/B + cajon + corte), tipo de letra Epson A/B por impresora, look navy + version grande, letra grande. Conserva fix hashlib + barcode128 GDI propios de Windows.
 # Fix ReportLab con Python/_hashlib viejo: algunas versiones de ReportLab llaman
 # hashlib.md5(data, usedforsecurity=False) para los IDs de objetos del PDF, pero
 # el openssl_md5 del build congelado no acepta ese keyword y rompe la generación
