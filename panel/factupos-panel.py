@@ -54,7 +54,7 @@ except Exception:
     HAVE_XLIB = False
 
 APP_ID = "com.soportereal.factupos.panel"
-VERSION = "1.5.6"                                # fuente única de versión
+VERSION = "1.5.7"                                # fuente única de versión
 ASSETS = "/usr/share/factupos-os"               # íconos de marca del FactuPOS OS
 START_ICON = os.path.join(ASSETS, "start-icon.png")
 CONFIG_MENU = "/etc/factupos-panel/menu.json"   # menú Inicio personalizable
@@ -2121,6 +2121,9 @@ class Panel(Gtk.Window):
             img = Gtk.Image.new_from_gicon(gicon, Gtk.IconSize.MENU)
         else:
             img = Gtk.Image.new_from_icon_name(icon or "application-x-executable", Gtk.IconSize.MENU)
+        # Forzar 16px: si un .desktop trae un Icon que solo existe como PNG grande
+        # (p.ej. factupos-print), new_from_gicon NO lo escala y se ve gigante.
+        img.set_pixel_size(16)
         box.pack_start(img, False, False, 0)
         l = Gtk.Label(label=label)
         l.set_xalign(0)

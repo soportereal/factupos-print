@@ -1,6 +1,6 @@
 {
-  "version": "1.5.6",
+  "version": "1.5.7",
   "py": "https://soportereal.com/software/factupos-app/linux/factupos-panel.py",
   "deb": "https://soportereal.com/software/factupos-app/linux/Factupos-Panel.deb",
-  "notes": "Menu Inicio: Documentos, Imagenes y Ayuda y soporte ahora arriba. Boton Verificar version + chequeo cada 6h."
+  "notes": "Fix: icono de factupos-print en el menu Programas se veia gigante (se fuerza 16px). Documentos/Imagenes/Ayuda arriba."
 }
