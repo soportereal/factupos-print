@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Factupos-IA
+Comment=Soporte remoto con IA: diagnostica y corrige la estacion
+Exec=factupos-ia
+Icon=utilities-terminal
+Terminal=false
+Categories=System;Utility;
+Keywords=soporte;ia;factupos;estacion;reparar;asistente;
+StartupNotify=true

@@ -35,7 +35,7 @@ CONFIG_DEFAULT = {
     "reboot_hour": "03:00",
     "reboot_grace_seconds": 1,
     "auto_update_enabled": True,
-    "update_check_url": "https://invefacon.factupos.com/downloads/factupos_backup_version.json",
+    "update_check_url": "https://invefacon.factupos.com/downloads/Factupos-Backup_version.json",
     "restore_data_path": "D:\\SqlData",
     "restore_log_path": "C:\\SqlLog",
     "network_drives": [],

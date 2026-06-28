@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>FactuPOS - Fingerprint Service Windows</title>
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; background: #1a1a2e; color: #e0e0e0; }
+h1 { color: #7c3aed; font-size: 22px; }
+h2 { color: #a78bfa; font-size: 16px; margin-top: 30px; }
+a { color: #7c3aed; }
+a:hover { color: #a78bfa; }
+.file-list { list-style: none; padding: 0; }
+.file-list li { padding: 8px 12px; margin: 4px 0; background: #16213e; border-radius: 6px; }
+.file-list li a { text-decoration: none; display: block; }
+.file-list li:hover { background: #1a1a40; }
+.size { color: #888; font-size: 12px; margin-left: 10px; }
+code { background: #16213e; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+ol li { margin: 8px 0; line-height: 1.6; }
+.warn { color: #f59e0b; }
+</style>
+</head>
+<body>
+<h1>FactuPOS - Fingerprint Service para Windows v1.0</h1>
+<p>Servicio local que expone el lector U.are.U 4500 en <code>https://127.0.0.1:52181</code></p>
+
+<h2><a href="/downloads/factupos-fingerprint-windows.zip" style="background:#7c3aed;color:#fff;padding:8px 20px;border-radius:6px;text-decoration:none;font-size:16px;">Descargar ZIP (68 KB)</a></h2>
+
+<h2>Archivos individuales</h2>
+<ul class="file-list">
+<li><a href="instalar.bat">instalar.bat</a> <span class="size">Instalador (ejecutar como Admin)</span></li>
+<li><a href="reiniciar_servicio.bat">reiniciar_servicio.bat</a> <span class="size">Reiniciar servicio</span></li>
+<li><a href="src/FingerprintService.cs">src/FingerprintService.cs</a> <span class="size">Codigo fuente</span></li>
+<li><a href="sdk/DPFPDevNET.dll">sdk/DPFPDevNET.dll</a></li>
+<li><a href="sdk/DPFPShrNET.dll">sdk/DPFPShrNET.dll</a></li>
+<li><a href="sdk/DPFPEngNET.dll">sdk/DPFPEngNET.dll</a></li>
+<li><a href="sdk/DPFPVerNET.dll">sdk/DPFPVerNET.dll</a></li>
+<li><a href="sdk/DPFPGuiNET.dll">sdk/DPFPGuiNET.dll</a></li>
+</ul>
+
+<h2>Instalacion</h2>
+<ol>
+<li>Descargue todos los archivos y mantenga la estructura de carpetas:
+<pre>
+factupos-fingerprint-windows\
+  instalar.bat
+  reiniciar_servicio.bat
+  src\FingerprintService.cs
+  sdk\DPFPDevNET.dll
+  sdk\DPFPShrNET.dll
+  sdk\DPFPEngNET.dll
+  sdk\DPFPVerNET.dll
+  sdk\DPFPGuiNET.dll
+</pre>
+</li>
+<li>Conecte el lector U.are.U 4500 al USB</li>
+<li>Click derecho en <code>instalar.bat</code> &rarr; <strong>Ejecutar como administrador</strong></li>
+<li>Abra Chrome: <code>https://127.0.0.1:52181/status</code></li>
+<li>Acepte el certificado &rarr; debe ver <code>{"ok":true,"connected":true}</code></li>
+</ol>
+
+<p class="warn">No necesita Visual Studio. El compilador C# ya viene incluido en Windows 10/11.</p>
+</body>
+</html>

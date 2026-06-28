@@ -1,0 +1,21 @@
+#!/bin/sh
+set -e
+
+# Refrescar el menu de aplicaciones (para que aparezca el lanzador).
+if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database -q /usr/share/applications || true
+fi
+
+# Arrancar (o reiniciar) el panel en la sesion grafica del usuario, sin esperar
+# al proximo login. Mejor esfuerzo: si falla, el autostart lo levanta luego.
+GUIUSER="${SUDO_USER:-$(logname 2>/dev/null || true)}"
+if [ -n "$GUIUSER" ] && [ "$GUIUSER" != "root" ]; then
+    UID_=$(id -u "$GUIUSER" 2>/dev/null || echo "")
+    if [ -n "$UID_" ]; then
+        su - "$GUIUSER" -c "pkill -f keepalive.sh 2>/dev/null; pkill -f factupos-panel 2>/dev/null; \
+            DISPLAY=:0 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$UID_/bus \
+            nohup setsid /usr/lib/factupos-panel/keepalive.sh >/dev/null 2>&1 &" || true
+    fi
+fi
+
+exit 0

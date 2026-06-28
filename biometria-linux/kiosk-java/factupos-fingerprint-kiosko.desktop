@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=FactuPOS FingerPrint Kiosko
+Comment=Marcaje de asistencia por huella digital
+Exec=/opt/factupos-fingerprint-kiosko/run.sh
+Icon=fingerprint-gui
+Terminal=false
+Categories=Utility;
+X-GNOME-Autostart-enabled=true

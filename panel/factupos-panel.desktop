@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=FactuPOS · Barra de Tareas
+Name[es]=FactuPOS · Barra de Tareas
+Comment=Barra de tareas de FactuPOS OS (Inicio, programas abiertos, red, reloj)
+Comment[es]=Barra de tareas de FactuPOS OS (Inicio, programas abiertos, red, reloj)
+Exec=factupos-panel --monitor all
+Icon=start-here
+Terminal=false
+Categories=System;Utility;
+Keywords=panel;barra;taskbar;inicio;factupos;
+X-GNOME-Autostart-enabled=true
+StartupNotify=false

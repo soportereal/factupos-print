@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=FactuPOS · DataEquipo
+Name[es]=FactuPOS · DataEquipo
+Comment=Información del equipo (hardware, red, soporte remoto)
+Exec=factupos-dataequipo
+Icon=computer
+Terminal=false
+Categories=System;
+Keywords=equipo;sistema;info;hardware;red;soporte;factupos;

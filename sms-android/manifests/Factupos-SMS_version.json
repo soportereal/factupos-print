@@ -1,0 +1,6 @@
+{
+  "version": "1.0",
+  "versionCode": 1,
+  "downloadUrl": "https://soportereal.com/software/factupos-app/android/FactuPOS-SMS-Android.apk",
+  "notes": "Envio de SMS (Android). En Android la actualizacion la instala el usuario (APK), no auto-reemplazo."
+}

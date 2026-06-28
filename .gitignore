@@ -3,6 +3,15 @@ dist/
 __pycache__/
 *.spec
 *.pyc
+# Android (Gradle): cachés, builds y rutas locales del SDK
+.gradle/
+**/app/build/
+local.properties
+# Java/Maven (biometria-linux)
+target/
+# SECRETOS — llaves de firma Android, NUNCA subir a GitHub
+*.jks
+*.keystore
 # Artefactos generados por CI dentro de cada <app>/installer/ (los .exe/zip los
 # baja/genera Actions; el instalador queda en Output/).
 **/installer/*.exe

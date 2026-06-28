@@ -1,0 +1,50 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.factupos.printbridge'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.factupos.printbridge"
+        minSdk 21
+        targetSdk 34
+        versionCode 48
+        versionName "3.7.20"
+
+        // Fecha de compilación inyectada en BuildConfig
+        buildConfigField "String", "BUILD_DATE", "\"${new Date().format('yyyy-MM-dd HH:mm')}\""
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    buildFeatures {
+        aidl true
+        buildConfig true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+configurations.all {
+    // Resolver conflicto kotlin-stdlib-jdk7/jdk8 vs kotlin-stdlib unificado
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.core:core:1.12.0'
+
+    // NanoHTTPD - servidor HTTP embebido ligero (~50KB)
+    implementation 'org.nanohttpd:nanohttpd:2.3.1'
+}

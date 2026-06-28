@@ -1,0 +1,104 @@
+#!/bin/bash
+set -e
+
+CERT_DIR="/opt/factupos-fingerprint-servicio/certs"
+PRINTS_DIR="/opt/factupos-fingerprint-servicio/prints"
+
+mkdir -p "$CERT_DIR" "$PRINTS_DIR"
+
+# Generar certificado SSL autofirmado si no existe
+if [ ! -f "$CERT_DIR/cert.pem" ]; then
+    openssl req -x509 -newkey rsa:2048 \
+        -keyout "$CERT_DIR/key.pem" \
+        -out "$CERT_DIR/cert.pem" \
+        -days 3650 -nodes \
+        -subj '/CN=127.0.0.1' \
+        -addext 'subjectAltName=IP:127.0.0.1' 2>/dev/null
+    echo "[factupos-fingerprint-servicio] Certificado SSL generado"
+fi
+
+# Reservar el puerto 52181 para que ningún programa efímero (VS Code, navegadores...)
+# lo tome al azar: 52181 cae dentro del rango efímero de Linux (32768-60999), así que
+# cualquier proceso que pida "un puerto libre" puede robárselo antes que el servicio.
+RESERVED_CONF="/etc/sysctl.d/99-factupos-fingerprint-servicio.conf"
+if [ ! -f "$RESERVED_CONF" ]; then
+    echo "net.ipv4.ip_local_reserved_ports = 52181" > "$RESERVED_CONF"
+    echo "[factupos-fingerprint-servicio] Puerto 52181 reservado ($RESERVED_CONF)"
+fi
+# Aplicar en caliente SIN pisar otras reservas que ya existieran
+CUR="$(cat /proc/sys/net/ipv4/ip_local_reserved_ports 2>/dev/null || true)"
+case ",$CUR," in
+    *",52181,"*|*"52181"*) NEW="$CUR" ;;          # ya estaba reservado
+    *) [ -n "$CUR" ] && NEW="$CUR,52181" || NEW="52181" ;;
+esac
+sysctl -w "net.ipv4.ip_local_reserved_ports=$NEW" >/dev/null 2>&1 || true
+# Nota: la reserva NO desaloja a un proceso que YA tenga el 52181 tomado en esta sesión;
+# eso se libera al reiniciar el equipo (o cerrando ese programa). Desde el próximo arranque
+# el servicio toma el puerto antes que nadie y la reserva impide que se lo roben.
+
+systemctl daemon-reload
+systemctl enable factupos-fingerprint-servicio.service
+systemctl restart factupos-fingerprint-servicio.service
+
+# --- Icono "Estado del Servicio de Huella" en menú + Escritorio ---
+chmod +x /opt/factupos-fingerprint-servicio/estado.sh 2>/dev/null || true
+update-desktop-database /usr/share/applications 2>/dev/null || true
+gtk-update-icon-cache -f /usr/share/icons/hicolor 2>/dev/null || true
+ESTADO_SRC=/usr/share/applications/factupos-fingerprint-estado.desktop
+for home in /root /home/*; do
+    [ -d "$home" ] || continue
+    user=$(basename "$home")
+    for desk in "$home/Desktop" "$home/Escritorio"; do
+        if [ -d "$desk" ]; then
+            cp -f "$ESTADO_SRC" "$desk/factupos-fingerprint-estado.desktop"
+            chmod +x "$desk/factupos-fingerprint-estado.desktop"
+            [ "$user" != "root" ] && chown "$user":"$user" "$desk/factupos-fingerprint-estado.desktop" 2>/dev/null || true
+            sudo -u "$user" gio set "$desk/factupos-fingerprint-estado.desktop" metadata::trusted true 2>/dev/null || true
+        fi
+    done
+done
+
+# --- Verificar que quedó CORRIENDO y avisarlo (terminal + notificacion de escritorio) ---
+sleep 1
+RUNNING=0
+if systemctl is-active --quiet factupos-fingerprint-servicio.service; then
+    RUNNING=1
+fi
+# probar el endpoint (hasta 3 intentos, da tiempo a que abra el puerto)
+RESP=0
+if command -v curl >/dev/null 2>&1; then
+    for i in 1 2 3; do
+        if curl -sk --max-time 3 https://127.0.0.1:52181/status >/dev/null 2>&1; then RESP=1; break; fi
+        sleep 1
+    done
+fi
+
+# notificacion de escritorio al usuario grafico (best effort)
+GUIUSER="${SUDO_USER:-$(logname 2>/dev/null || true)}"
+notify_gui() {  # $1=urgencia (normal|critical) $2=titulo $3=cuerpo
+    [ -n "$GUIUSER" ] && [ "$GUIUSER" != "root" ] || return 0
+    local UID_; UID_=$(id -u "$GUIUSER" 2>/dev/null || echo "")
+    [ -n "$UID_" ] || return 0
+    su - "$GUIUSER" -c "DISPLAY=:0 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$UID_/bus \
+        notify-send -u '$1' -i factupos-fingerprint-kiosko '$2' '$3'" 2>/dev/null || true
+}
+
+echo ""
+echo "======================================"
+echo " FactuPOS FingerPrint Servicio v2.5.0"
+echo "======================================"
+if [ "$RUNNING" = "1" ]; then
+    echo " ✅ Servicio ACTIVO y corriendo."
+    [ "$RESP" = "1" ] && echo " ✅ Responde en https://127.0.0.1:52181/status" \
+                      || echo " ⏳ Activo, pero el lector aun no responde (se recupera solo)."
+    notify_gui normal "FactuPOS FingerPrint Servicio" "Instalado y CORRIENDO ✅  (https://127.0.0.1:52181)"
+else
+    echo " ❌ El servicio NO arrancó."
+    echo "    Revisa: journalctl -u factupos-fingerprint-servicio -n 30"
+    notify_gui critical "FactuPOS FingerPrint Servicio" "Instalado pero NO arrancó ❌  Revisa journalctl."
+fi
+echo ""
+echo " IMPORTANTE: abre en Chrome https://127.0.0.1:52181/status y acepta el certificado."
+echo " Estado:      systemctl status factupos-fingerprint-servicio"
+echo " Desinstalar: sudo apt remove factupos-fingerprint-servicio"
+echo ""

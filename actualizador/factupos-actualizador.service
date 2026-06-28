@@ -1,0 +1,8 @@
+[Unit]
+Description=FactuPOS - Actualizador de aplicaciones (desde invefacon)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/factupos-actualizador/factupos-actualizador.sh

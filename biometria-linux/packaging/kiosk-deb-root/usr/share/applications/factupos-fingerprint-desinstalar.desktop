@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Desinstalar FactuPOS FingerPrint
+GenericName=Desinstalador
+Comment=Quitar el servicio de huella y el kiosko de marcaje
+Exec=/opt/factupos-fingerprint-kiosko/desinstalar.sh
+Icon=factupos-fingerprint-kiosko
+Terminal=false
+Categories=Utility;System;
+Keywords=desinstalar;quitar;remove;huella;factupos;
+NoDisplay=false
+StartupNotify=true

@@ -1,0 +1,10 @@
+[Unit]
+Description=FactuPOS - chequeo de actualizaciones (arranque + cada 6h)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=6h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

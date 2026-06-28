@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+# Refrescar el menu de aplicaciones (para que aparezca el lanzador).
+if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database -q /usr/share/applications || true
+fi
+
+# La regla polkit en /usr/share/polkit-1/rules.d se carga sola; no hace falta
+# reiniciar polkit. Si esta corriendo, un reload no molesta.
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl reload polkit 2>/dev/null || true
+fi
+
+exit 0

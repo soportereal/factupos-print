@@ -1,0 +1,14 @@
+Package: factupos-fingerprint-kiosko
+Version: 1.8.2
+Section: utils
+Priority: optional
+Architecture: all
+Depends: default-jre | java11-runtime | openjdk-17-jre | openjdk-21-jre
+Recommends: zenity, policykit-1 | polkit
+Maintainer: FactuPOS Dev <dev@factupos.com>
+Description: FactuPOS Kiosko de Huella (Linux)
+ Aplicacion de escritorio para marcaje de asistencia por huella digital.
+ Identifica al empleado con el servicio local factupos-fingerprint-servicio y registra
+ la marca contra las APIs web de FactuPOS (sin login). Incluye configurador de
+ token de acceso (boton Config) y registro de huellas.
+ Requiere el paquete factupos-fingerprint-servicio (servicio del lector) instalado.

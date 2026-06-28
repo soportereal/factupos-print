@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=FactuPOS FingerPrint Kiosko
+GenericName=Marcaje de Asistencia
+Comment=Marcaje de asistencia por huella digital
+Exec=/opt/factupos-fingerprint-kiosko/run.sh
+Icon=factupos-fingerprint-kiosko
+Terminal=false
+Categories=Utility;Office;
+Keywords=huella;marcaje;asistencia;biometria;factupos;
+StartupNotify=true

@@ -1,0 +1,4 @@
+# Permite al kiosko de huella controlar SOLO el servicio factupos-fingerprint-servicio sin pedir clave.
+# (El kiosko corre como usuario normal; systemctl necesita root.)
+# Se cubren las dos rutas posibles de systemctl (/usr/bin y /bin) por compatibilidad.
+ALL ALL=(root) NOPASSWD: /usr/bin/systemctl restart factupos-fingerprint-servicio, /usr/bin/systemctl stop factupos-fingerprint-servicio, /usr/bin/systemctl start factupos-fingerprint-servicio, /usr/bin/systemctl status factupos-fingerprint-servicio, /bin/systemctl restart factupos-fingerprint-servicio, /bin/systemctl stop factupos-fingerprint-servicio, /bin/systemctl start factupos-fingerprint-servicio, /bin/systemctl status factupos-fingerprint-servicio

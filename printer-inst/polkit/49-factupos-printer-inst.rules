@@ -1,0 +1,11 @@
+// FactuPOS · Instalador de Impresoras
+// Permite a usuarios admin (grupos sudo o lpadmin) ejecutar el helper
+// privilegiado SIN pedir contrasena (crear cola RAW / detectar USB).
+// El helper es minimo y auditado: solo lpadmin / lpinfo / cupsenable / cupsaccept.
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.policykit.exec" &&
+        action.lookup("program") == "/usr/lib/factupos-printer-inst/helper.py" &&
+        (subject.isInGroup("sudo") || subject.isInGroup("lpadmin"))) {
+        return polkit.Result.YES;
+    }
+});

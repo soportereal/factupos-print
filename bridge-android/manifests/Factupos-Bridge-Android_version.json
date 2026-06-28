@@ -1,0 +1,6 @@
+{
+    "version": "3.7.20",
+    "versionCode": 48,
+    "released": "2026-05-13",
+    "notes": "v3.7.20: Fix MZ220 sale en blanco. El PAGE-WIDTH 576 hardcoded era valido solo para MZ320 (72mm). El MZ220 (58mm) tiene 384 dots maximos y al recibir 576 rechaza el documento CPCL entero. Ahora el bridge DETECTA el modelo por nombre y elige el PAGE-WIDTH correcto: MZ220/iMZ220/ZQ2 -> 384, MZ320/iMZ320/ZQ3/MZ4/ZQ5/ZQ6 -> 576, otros -> sin PAGE-WIDTH (firmware default). v3.7.19: sin setvars, CPCL puro funcionando."
+}

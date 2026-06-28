@@ -1,0 +1,10 @@
+Package: factupos-actualizador
+Version: __VERSION__
+Section: admin
+Priority: optional
+Architecture: all
+Depends: python3, curl, apt
+Maintainer: Soporte Real <soporte@soportereal.com>
+Description: FactuPOS - Actualizador de aplicaciones
+ Mantiene las apps FactuPOS (panel, dataequipo, etc.) al dia desde invefacon.net
+ (failover invefacon.com) e instala las que falten. Timer systemd cada 6h.

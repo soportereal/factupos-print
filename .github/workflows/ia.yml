@@ -1,0 +1,108 @@
+name: Build Factupos-IA
+
+# Linux: .deb (sólido). Windows: .exe + instalador con GTK (vía MSYS2) —
+# el job de Windows es el más delicado por empaquetar GTK con PyInstaller;
+# validar el primer run y ajustar si hace falta.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'ia/**'
+      - '.github/workflows/ia.yml'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version del paquete'
+        default: '1.0.0'
+
+jobs:
+  # ----------------------------------------------------------------- Linux .deb
+  linux-deb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verificar sintaxis Python
+        run: python3 -m py_compile ia/factupos_ia.py
+      - name: Construir .deb
+        run: |
+          VER="${{ github.event.inputs.version || '1.0.0' }}"
+          chmod +x ia/installer/build-deb.sh
+          ia/installer/build-deb.sh "$VER" "$GITHUB_WORKSPACE/out"
+          ls -la "$GITHUB_WORKSPACE/out"
+      - name: Verificar contenido del .deb
+        run: |
+          dpkg-deb --info  out/*.deb
+          dpkg-deb --contents out/*.deb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: factupos-ia-deb
+          path: out/*.deb
+          retention-days: 90
+
+  # -------------------------------------------------------------- Windows .exe
+  windows-exe:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            suffix: ""
+            msystem: MINGW64
+            prefix: mingw-w64-x86_64
+          - arch: x86
+            suffix: "-x86"
+            msystem: MINGW32
+            prefix: mingw-w64-i686
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          update: true
+          install: >-
+            ${{ matrix.prefix }}-python
+            ${{ matrix.prefix }}-python-gobject
+            ${{ matrix.prefix }}-gtk3
+            ${{ matrix.prefix }}-python-pip
+      - name: Build .exe (PyInstaller + GTK)
+        shell: msys2 {0}
+        run: |
+          pip install --upgrade pyinstaller
+          pyinstaller --onefile --windowed --name Factupos-IA${{ matrix.suffix }} \
+            --collect-all gi --collect-all cairo \
+            ia/factupos_ia.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: factupos-ia-exe-${{ matrix.arch }}
+          path: dist/Factupos-IA${{ matrix.suffix }}.exe
+          if-no-files-found: error
+
+  # -------------------------------------------------- Windows instaladores Inno
+  windows-installer:
+    needs: windows-exe
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: factupos-ia-exe-x64
+          path: ia/installer
+      - uses: actions/download-artifact@v4
+        with:
+          name: factupos-ia-exe-x86
+          path: ia/installer
+      - name: Instalar Inno Setup
+        run: choco install innosetup -y --no-progress
+      - name: Compilar instalador x64
+        shell: cmd
+        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DARCH=x64 ia\installer\factupos-ia.iss'
+      - name: Compilar instalador x86
+        shell: cmd
+        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DARCH=x86 ia\installer\factupos-ia.iss'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: factupos-ia-installers
+          path: ia\installer\Output\Factupos-IA-*.exe
+          if-no-files-found: error

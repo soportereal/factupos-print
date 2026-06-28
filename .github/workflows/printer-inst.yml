@@ -1,0 +1,38 @@
+name: Build Printer Installer (Linux .deb)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'printer-inst/**'
+      - '.github/workflows/printer-inst.yml'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version del paquete'
+        default: '1.0.0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construir .deb
+        run: |
+          VER="${{ github.event.inputs.version || '1.0.0' }}"
+          chmod +x printer-inst/installer/build-deb.sh
+          printer-inst/installer/build-deb.sh "$VER" "$GITHUB_WORKSPACE/out"
+          ls -la "$GITHUB_WORKSPACE/out"
+
+      - name: Verificar contenido del .deb
+        run: |
+          sudo apt-get update -qq
+          dpkg-deb --info  out/*.deb
+          dpkg-deb --contents out/*.deb
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: factupos-printer-inst-deb
+          path: out/*.deb
+          retention-days: 90

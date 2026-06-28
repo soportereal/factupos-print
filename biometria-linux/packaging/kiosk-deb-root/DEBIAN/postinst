@@ -1,0 +1,63 @@
+#!/bin/bash
+set -e
+
+DESKTOP_SRC=/usr/share/applications/factupos-fingerprint-kiosko.desktop
+
+chmod +x /opt/factupos-fingerprint-kiosko/run.sh /usr/bin/factupos-fingerprint-kiosko \
+         /opt/factupos-fingerprint-kiosko/desinstalar.sh /opt/factupos-fingerprint-kiosko/desinstalar-root.sh 2>/dev/null || true
+
+# Permiso sudoers para que el kiosko controle el servicio (restart/stop/start) sin clave.
+SUDOERS=/etc/sudoers.d/factupos-fingerprint-kiosko
+if [ -f "$SUDOERS" ]; then
+    chown root:root "$SUDOERS"
+    chmod 0440 "$SUDOERS"
+    if ! visudo -cf "$SUDOERS" >/dev/null 2>&1; then
+        echo "[kiosko] sudoers inválido — se remueve para no romper sudo"
+        rm -f "$SUDOERS"
+    fi
+fi
+
+# refrescar el menú de aplicaciones
+update-desktop-database /usr/share/applications 2>/dev/null || true
+
+# crear acceso directo en el Escritorio de cada usuario (+ root)
+for home in /root /home/*; do
+    [ -d "$home" ] || continue
+    user=$(basename "$home")
+    for desk in "$home/Desktop" "$home/Escritorio"; do
+        if [ -d "$desk" ]; then
+            cp -f "$DESKTOP_SRC" "$desk/factupos-fingerprint-kiosko.desktop"
+            chmod +x "$desk/factupos-fingerprint-kiosko.desktop"
+            [ "$user" != "root" ] && chown "$user":"$user" "$desk/factupos-fingerprint-kiosko.desktop" 2>/dev/null || true
+            # marcar como confiable (GNOME) — best effort
+            sudo -u "$user" gio set "$desk/factupos-fingerprint-kiosko.desktop" metadata::trusted true 2>/dev/null || true
+        fi
+    done
+done
+
+# refrescar la cache de iconos (para que el icono propio aparezca de una)
+gtk-update-icon-cache -f /usr/share/icons/hicolor 2>/dev/null || true
+
+# Lanzar el kiosko en la sesion grafica del usuario apenas se instala, sin esperar
+# al proximo login. Mejor esfuerzo: si falla, el autostart / acceso directo lo levanta.
+GUIUSER="${SUDO_USER:-$(logname 2>/dev/null || true)}"
+if [ -n "$GUIUSER" ] && [ "$GUIUSER" != "root" ]; then
+    UID_=$(id -u "$GUIUSER" 2>/dev/null || echo "")
+    if [ -n "$UID_" ]; then
+        su - "$GUIUSER" -c "pkill -f FactuposKioskoHuella.jar 2>/dev/null; sleep 1; \
+            DISPLAY=:0 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$UID_/bus \
+            nohup setsid /opt/factupos-fingerprint-kiosko/run.sh >/dev/null 2>&1 &" || true
+        echo "[kiosko] lanzado en la sesion grafica de $GUIUSER"
+    fi
+fi
+
+echo ""
+echo "======================================"
+echo " FactuPOS Kiosko de Huella v1.7.1 (tray cambia segun estado del lector)"
+echo "======================================"
+echo " Acceso directo creado en el Escritorio y en el menu de aplicaciones."
+echo " La app se abre automaticamente al terminar de instalar."
+echo " Usa el boton 'Config' para pegar el token."
+echo " (Requiere el servicio: sudo dpkg -i factupos-fingerprint-servicio_*.deb)"
+echo ""
+exit 0

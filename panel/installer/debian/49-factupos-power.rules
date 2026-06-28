@@ -1,0 +1,8 @@
+// FactuPOS OS: el usuario local puede apagar/reiniciar/suspender SIN contraseña
+// (equipo de punto de venta), aun con varias sesiones abiertas.
+polkit.addRule(function(action, subject) {
+    if (action.id.indexOf("org.freedesktop.login1.") === 0 &&
+        (subject.local || subject.isInGroup("sudo"))) {
+        return polkit.Result.YES;
+    }
+});

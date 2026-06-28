@@ -1,0 +1,13 @@
+Package: factupos-ia
+Version: __VERSION__
+Section: utils
+Priority: optional
+Architecture: all
+Depends: python3, python3-gi, gir1.2-gtk-3.0, ca-certificates
+Maintainer: Soporte Real <soporte@soportereal.com>
+Homepage: https://soportereal.com
+Description: Factupos-IA - Soporte remoto con IA
+ Asistente de soporte que diagnostica y corrige la estacion FactuPOS con ayuda
+ de IA: ejecuta comandos locales (con confirmacion del tecnico), lee y edita
+ archivos de configuracion, y revisa servicios, impresoras y conexion a la base
+ de datos. Habla con el proxy de la pagina (no contiene la API key).

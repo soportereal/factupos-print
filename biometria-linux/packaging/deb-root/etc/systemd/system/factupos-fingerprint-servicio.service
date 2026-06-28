@@ -1,0 +1,19 @@
+[Unit]
+Description=FactuPOS FingerPrint Servicio (libfprint)
+After=network.target
+# Nunca rendirse: aunque crashee muchas veces seguidas, systemd sigue reintentando.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/python3 /opt/factupos-fingerprint-servicio/fingerprint_service.py
+Restart=always
+RestartSec=2
+KillMode=process
+KillSignal=SIGTERM
+TimeoutStopSec=5
+SendSIGKILL=yes
+
+[Install]
+WantedBy=multi-user.target

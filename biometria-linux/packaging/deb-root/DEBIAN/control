@@ -1,0 +1,17 @@
+Package: factupos-fingerprint-servicio
+Version: 2.5.2
+Section: utils
+Priority: optional
+Architecture: amd64
+Depends: python3 (>= 3.10), python3-gi, gir1.2-fprint-2.0, libfprint-2-2, python3-pil, openssl
+Recommends: curl, zenity, policykit-1 | polkit
+Maintainer: FactuPOS Dev <dev@factupos.com>
+Description: FactuPOS Fingerprint Service v2.5
+ Servicio local de huella digital para FactuPOS.
+ Compatible con Digital Persona U.are.U 4500.
+ Matching real por minutiae (libfprint2).
+ API HTTPS en 127.0.0.1:52181 para enroll/identify.
+ Soporta sincronizacion de templates desde la BD (prints/import,
+ prints/clear) y progreso/cancelacion de enroll para el kiosko Linux.
+ Auto-actualizacion: descarga y aplica versiones nuevas (GET /update/check,
+ POST /update) y se reinicia solo.

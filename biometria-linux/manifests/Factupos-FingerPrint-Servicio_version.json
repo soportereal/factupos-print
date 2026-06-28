@@ -1,0 +1,5 @@
+{
+  "version": "2.5.2",
+  "py": "https://soportereal.com/software/factupos-app/linux/fingerprint_service.py",
+  "deb": "https://soportereal.com/software/factupos-app/linux/Factupos-FingerPrint-Servicio.deb"
+}

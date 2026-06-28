@@ -35,12 +35,14 @@ except Exception:
     list_ports = None
 
 # Version del Bridge Windows. Debe COINCIDIR con la publicada en el manifest
-# (bridge_windows_version.json) para no entrar en loop de auto-update.
+# (Factupos-Bridge_version.json) para no entrar en loop de auto-update.
 VERSION = "1.2"
 
 # Auto-update: el Bridge no se conecta a ningun server (es un HTTP local), asi
 # que chequea un manifest propio al arrancar y cada UPDATE_CHECK_INTERVAL.
-UPDATE_MANIFEST_URL = "https://factupos.com/downloads/bridge_windows_version.json"
+# Manifest nuevo (nombre = app). El viejo bridge_windows_version.json se deja
+# publicado como ALIAS temporal para las instalaciones que aun leen esa URL.
+UPDATE_MANIFEST_URL = "https://factupos.com/downloads/Factupos-Bridge_version.json"
 UPDATE_CHECK_INTERVAL = 6 * 3600  # 6 horas
 
 HOST = "127.0.0.1"

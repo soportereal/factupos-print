@@ -1,0 +1,4 @@
+#!/bin/bash
+set -e
+systemctl stop factupos-fingerprint-servicio.service 2>/dev/null || true
+systemctl disable factupos-fingerprint-servicio.service 2>/dev/null || true

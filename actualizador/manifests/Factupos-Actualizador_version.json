@@ -1,0 +1,5 @@
+{
+  "version": "1.0.0",
+  "deb": "https://soportereal.com/software/factupos-app/linux/Factupos-Actualizador.deb",
+  "notes": "Servicio (systemd timer) que actualiza a las demas apps leyendo versiones.txt. No se auto-actualiza a si mismo."
+}

@@ -1,0 +1,6 @@
+{
+  "version": "1.0.2",
+  "py": "https://soportereal.com/software/factupos-app/linux/factupos_ia.py",
+  "deb": "https://soportereal.com/software/factupos-app/linux/Factupos-IA.deb",
+  "notes": "Version inicial: soporte remoto con IA (diagnostica y corrige la estacion, con confirmacion)."
+}

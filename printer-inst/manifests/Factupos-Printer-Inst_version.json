@@ -1,0 +1,6 @@
+{
+  "version": "1.0.0",
+  "deb": "https://soportereal.com/software/factupos-app/linux/Factupos-Printer-Inst.deb",
+  "py": "https://soportereal.com/software/factupos-app/linux/factupos-printer-inst.py",
+  "notes": "Asistente de impresoras USB/Serial (tickets). Auto-update: botón 'Verificar versión' + chequeo cada 6h."
+}

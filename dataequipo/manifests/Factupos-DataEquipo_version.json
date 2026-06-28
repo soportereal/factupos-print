@@ -1,0 +1,6 @@
+{
+  "version": "1.0.0",
+  "deb": "https://soportereal.com/software/factupos-app/linux/Factupos-DataEquipo.deb",
+  "py": "https://soportereal.com/software/factupos-app/linux/factupos-dataequipo.py",
+  "notes": "Info del equipo (FactuPOS OS)."
+}

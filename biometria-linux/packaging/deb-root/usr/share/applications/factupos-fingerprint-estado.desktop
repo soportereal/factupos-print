@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Estado del Servicio de Huella
+GenericName=Estado del servicio FactuPOS FingerPrint
+Comment=Ver si el servicio del lector de huella está activo y reiniciarlo
+Exec=/opt/factupos-fingerprint-servicio/estado.sh
+Icon=factupos-fingerprint-servicio
+Terminal=false
+Categories=Utility;System;
+Keywords=huella;servicio;estado;activo;factupos;fingerprint;
+StartupNotify=true

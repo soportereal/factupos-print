@@ -1,0 +1,19 @@
+#!/bin/bash
+set -e
+systemctl daemon-reload
+
+# Quitar la reserva del puerto 52181 al remover/purgar el paquete
+if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+    rm -f /etc/sysctl.d/99-factupos-fingerprint-servicio.conf
+fi
+
+# quitar el acceso directo "Estado del Servicio" del Escritorio
+for home in /root /home/*; do
+    for desk in "$home/Desktop" "$home/Escritorio"; do
+        rm -f "$desk/factupos-fingerprint-estado.desktop" 2>/dev/null || true
+    done
+done
+
+if [ "$1" = "purge" ]; then
+    rm -rf /opt/factupos-fingerprint-servicio
+fi

@@ -1,0 +1,17 @@
+{
+  "api_base": [
+    "https://invefacon.net",
+    "https://invefacon.com"
+  ],
+  "db": "",
+  "token": "",
+  "dispositivo_id": "KIOSKO-LINUX-01",
+  "fp_service_url": "https://127.0.0.1:52181",
+  "plataforma": "linux",
+  "dedo_default": "right-index",
+  "refresh_minutos": 10,
+  "fullscreen": false,
+  "ventana": "420x640",
+  "titulo": "Marcaje de Asistencia",
+  "auto_registrar_si_no_existe": true
+}
