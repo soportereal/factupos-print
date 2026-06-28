@@ -16,7 +16,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib, Pango  # noqa: E402
 
-VERSION = "1.0.0"                                 # fuente única de versión
+VERSION = "1.0.1"                                 # fuente única de versión
 OS_VERSION_FILE = "/etc/factupos-os-version"
 
 # Auto-actualización (mismo esquema que factupos-panel).
@@ -35,32 +35,35 @@ def _vtuple(v):
 
 # ---- paleta navy FactuPOS ----
 CSS = b"""
-.fp-win { background-color: #0a1424; }
-.fp-header { background: linear-gradient(to bottom, #244a8a, #16305c); }
+/* Tema NAVY moderno y FLAT: colores solidos (sin degradados), tabs con acento
+   inferior, tarjetas planas, contrastes altos verificados. */
+.fp-win { background-color: #0e1b30; }
+.fp-header { background-color: #14284a; }
 .fp-header label { color: #ffffff; }
-.fp-title { font-size: 1.35em; font-weight: bold; }
-.fp-sub { color: #c4d3ec; font-size: 0.9em; }
-notebook { background-color: #0a1424; }
-notebook header { background-color: #0a1424; }
-notebook header tabs tab { background-color: #14233f; color: #aebfd9; padding: 8px 14px;
-                           border: none; margin: 0 1px; }
-notebook header tabs tab:checked { background-color: #244a8a; color: #ffffff; }
-notebook header tabs tab:hover { background-color: #1d3a6b; }
-.fp-card { background-color: #14233f; border: 1px solid #24395f; border-radius: 8px;
-           padding: 6px 4px; margin: 6px 8px; }
-.fp-cardtitle { color: #5b9be0; font-weight: bold; font-size: 1.02em; padding: 4px 10px 2px 10px; }
-.fp-key { color: #8fa6c9; padding: 4px 10px; }
-.fp-val { color: #ffffff; padding: 4px 10px; }
-.fp-val-strong { color: #7fd1a0; font-weight: bold; }
-.fp-val-warn { color: #ffb454; font-weight: bold; }
-.fp-val-bad  { color: #ff6b6b; font-weight: bold; }
-.fp-foot { background-color: #0e1b33; }
-.fp-btn { background-image: none; background-color: #244a8a; color: #ffffff;
-          border: none; padding: 7px 16px; border-radius: 6px; font-weight: bold; }
-.fp-btn:hover { background-color: #2d5aa6; }
-progressbar trough { background-color: #1a2c4d; min-height: 12px; border-radius: 6px; }
-progressbar progress { background-color: #3a78c8; border-radius: 6px; }
-levelbar block.filled { background-color: #3a78c8; }
+.fp-title { font-size: 1.7em; font-weight: bold; }
+.fp-sub { color: #aebfdb; font-size: 1.05em; }
+notebook { background-color: #0e1b30; }
+notebook header { background-color: #0e1b30; }
+notebook header tabs tab { background-color: transparent; color: #93a6c6; padding: 10px 18px;
+                           font-size: 1.12em; border: none; border-bottom: 2px solid transparent; margin: 0 2px; }
+notebook header tabs tab:checked { color: #ffffff; border-bottom: 2px solid #4f8fe0; }
+notebook header tabs tab:hover { color: #dce6f5; }
+.fp-card { background-color: #16294a; border: 1px solid #26406d; border-radius: 10px;
+           padding: 9px 6px; margin: 7px 9px; }
+.fp-cardtitle { color: #66a6ee; font-weight: bold; font-size: 1.22em; padding: 5px 10px 3px 10px; }
+.fp-key { color: #aab9d4; font-size: 1.12em; padding: 6px 10px; }
+.fp-val { color: #f3f7fd; font-size: 1.12em; padding: 6px 10px; }
+.fp-val-strong { color: #4fdc93; font-weight: bold; font-size: 1.12em; }
+.fp-val-warn { color: #f7b85a; font-weight: bold; font-size: 1.12em; }
+.fp-val-bad  { color: #ff8a8a; font-weight: bold; font-size: 1.12em; }
+.fp-foot { background-color: #0e1b30; }
+.fp-btn { background-image: none; background-color: #2d5aa6; color: #ffffff;
+          border: none; padding: 9px 18px; border-radius: 8px; font-weight: bold; font-size: 1.08em; }
+.fp-btn:hover { background-color: #366ac0; }
+progressbar trough { background-color: #1b2e4f; min-height: 12px; border-radius: 6px; }
+progressbar progress { background-color: #4f8fe0; border-radius: 6px; }
+levelbar block.filled { background-color: #4f8fe0; }
+levelbar block.empty { background-color: #1b2e4f; }
 """
 
 
@@ -167,7 +170,7 @@ class DataEquipo(Gtk.Window):
         tb = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         t = Gtk.Label(label="FactuPOS · DataEquipo", xalign=0)
         t.get_style_context().add_class("fp-title")
-        s = Gtk.Label(label="Información del equipo  ·  FactuPOS OS %s" % os_version(), xalign=0)
+        s = Gtk.Label(label="Información del equipo  ·  v%s  ·  FactuPOS OS %s" % (VERSION, os_version()), xalign=0)
         s.get_style_context().add_class("fp-sub")
         tb.pack_start(t, False, False, 0)
         tb.pack_start(s, False, False, 0)
