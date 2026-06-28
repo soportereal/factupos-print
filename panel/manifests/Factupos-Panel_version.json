@@ -1,6 +1,6 @@
 {
-  "version": "1.5.8",
+  "version": "1.5.9",
   "py": "https://soportereal.com/software/factupos-app/linux/factupos-panel.py",
   "deb": "https://soportereal.com/software/factupos-app/linux/Factupos-Panel.deb",
-  "notes": "Fix: programas duplicados en menu Programas (LibreOffice/Chrome/etc.) por favorito quemado vs escaneo - ahora deduplica."
+  "notes": "Menu Sistema: nuevo item 'Actualizar aplicaciones FactuPOS' (dispara el actualizador, actualiza todas las apps)."
 }

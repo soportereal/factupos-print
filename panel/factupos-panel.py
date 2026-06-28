@@ -54,7 +54,7 @@ except Exception:
     HAVE_XLIB = False
 
 APP_ID = "com.soportereal.factupos.panel"
-VERSION = "1.5.8"                                # fuente única de versión
+VERSION = "1.5.9"                                # fuente única de versión
 ASSETS = "/usr/share/factupos-os"               # íconos de marca del FactuPOS OS
 START_ICON = os.path.join(ASSETS, "start-icon.png")
 CONFIG_MENU = "/etc/factupos-panel/menu.json"   # menú Inicio personalizable
@@ -2269,7 +2269,33 @@ class Panel(Gtk.Window):
             ("Seguridad", "preferences-system-privacy", "seahorse"),
         )
         self._append_curated(menu, curated)
+        # Actualizar TODAS las apps FactuPOS (dispara el servicio actualizador).
+        menu.append(Gtk.SeparatorMenuItem())
+        mi = self._img_menu_item("Actualizar aplicaciones FactuPOS", "system-software-update")
+        mi.connect("activate", self._update_apps)
+        menu.append(mi)
         return menu
+
+    def _update_apps(self, *_):
+        """Dispara el servicio Factupos-Actualizador (root vía pkexec): actualiza
+        TODAS las apps FactuPOS al día según versiones.txt. Da feedback por notify."""
+        self._close_start_menu()
+        self._notify("Buscando actualizaciones de las apps FactuPOS…")
+
+        def work():
+            try:
+                r = subprocess.run(
+                    ["pkexec", "systemctl", "start", "factupos-actualizador.service"],
+                    capture_output=True, text=True, timeout=600)
+                if r.returncode == 0:
+                    self._notify("Aplicaciones FactuPOS actualizadas.")
+                elif r.returncode == 127:
+                    self._notify("Falta instalar Factupos-Actualizador.")
+                else:
+                    self._notify("No se actualizó (permiso cancelado o error).")
+            except Exception as e:
+                self._notify("Error al actualizar: %s" % e)
+        threading.Thread(target=work, daemon=True).start()
 
     def _append_curated(self, menu, curated):
         """Agrega items (etiqueta, icono, comando) a un flyout; omite los que no
