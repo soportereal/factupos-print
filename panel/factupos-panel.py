@@ -54,7 +54,7 @@ except Exception:
     HAVE_XLIB = False
 
 APP_ID = "com.soportereal.factupos.panel"
-VERSION = "1.5.7"                                # fuente única de versión
+VERSION = "1.5.8"                                # fuente única de versión
 ASSETS = "/usr/share/factupos-os"               # íconos de marca del FactuPOS OS
 START_ICON = os.path.join(ASSETS, "start-icon.png")
 CONFIG_MENU = "/etc/factupos-panel/menu.json"   # menú Inicio personalizable
@@ -2154,10 +2154,15 @@ class Panel(Gtk.Window):
         menu = Gtk.Menu()
         menu.get_style_context().add_class("fp-flyout")
         added = False
+        seen = set()   # evita duplicados (favorito quemado vs escaneo automático)
         for item in load_menu().get("Programas", []):
             label, cmd, ic = (item + ["", "", ""])[:3]
             if not cmd_available(cmd):
                 continue
+            k = label.strip().lower()
+            if k in seen:
+                continue
+            seen.add(k)
             menu.append(self._app_item(label, cmd=cmd, icon=ic))
             added = True
         buckets, otros = self._categorize()
@@ -2165,12 +2170,17 @@ class Panel(Gtk.Window):
             if es in ("Herramientas del sistema", "Accesorios", "Configuración"):
                 continue
             apps = otros if es == "Otros" else buckets.get(es, [])
+            apps = [(nm, ai) for (nm, ai) in apps if nm.strip().lower() not in seen]
             if not apps:
                 continue
             if added:
                 menu.append(Gtk.SeparatorMenuItem())
             menu.append(self._menu_header_item(es))
             for nm, ai in apps:
+                k = nm.strip().lower()
+                if k in seen:
+                    continue
+                seen.add(k)
                 menu.append(self._app_item(nm, gicon=ai.get_icon(), appinfo=ai))
             added = True
         return menu

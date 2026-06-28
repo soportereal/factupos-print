@@ -1,6 +1,6 @@
 {
-  "version": "1.5.7",
+  "version": "1.5.8",
   "py": "https://soportereal.com/software/factupos-app/linux/factupos-panel.py",
   "deb": "https://soportereal.com/software/factupos-app/linux/Factupos-Panel.deb",
-  "notes": "Fix: icono de factupos-print en el menu Programas se veia gigante (se fuerza 16px). Documentos/Imagenes/Ayuda arriba."
+  "notes": "Fix: programas duplicados en menu Programas (LibreOffice/Chrome/etc.) por favorito quemado vs escaneo - ahora deduplica."
 }
