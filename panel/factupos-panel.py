@@ -54,7 +54,7 @@ except Exception:
     HAVE_XLIB = False
 
 APP_ID = "com.soportereal.factupos.panel"
-VERSION = "1.5.9"                                # fuente única de versión
+VERSION = "1.5.10"                                # fuente única de versión
 ASSETS = "/usr/share/factupos-os"               # íconos de marca del FactuPOS OS
 START_ICON = os.path.join(ASSETS, "start-icon.png")
 CONFIG_MENU = "/etc/factupos-panel/menu.json"   # menú Inicio personalizable
@@ -645,8 +645,9 @@ class Panel(Gtk.Window):
         self.net_img = Gtk.Image.new_from_icon_name(
             "network-offline-symbolic", Gtk.IconSize.LARGE_TOOLBAR)
         self.net_btn.add(self.net_img)
-        self.net_btn.set_tooltip_text("Red / WiFi")
+        self.net_btn.set_tooltip_text("Red / WiFi  (clic der.: conectar/desconectar/configurar)")
         self.net_btn.connect("clicked", self.open_network)
+        self.net_btn.connect("button-press-event", self._net_btn_press)
         root.pack_start(self.net_btn, False, False, 0)
 
         # --- Volumen (campanita de audio) ---
@@ -716,6 +717,29 @@ class Panel(Gtk.Window):
         self.net_img.set_from_icon_name(icon, Gtk.IconSize.LARGE_TOOLBAR)
         self.net_btn.set_tooltip_text(tip)
         return True
+
+    def _net_btn_press(self, widget, event):
+        """Clic derecho en el icono de red -> menu Conectar/Desconectar/Configurar."""
+        if event.button == 3:
+            menu = Gtk.Menu()
+            menu.get_style_context().add_class("fp-flyout")
+            cfg = "nm-connection-editor" if cmd_available("nm-connection-editor") \
+                else ("cinnamon-settings network" if cmd_available("cinnamon-settings")
+                      else "nmtui")
+            for label, cmd in (("Conectar", "nmcli networking on"),
+                               ("Desconectar", "nmcli networking off"),
+                               (None, None),
+                               ("Configurar…", cfg)):
+                if label is None:
+                    menu.append(Gtk.SeparatorMenuItem())
+                    continue
+                mi = Gtk.MenuItem(label=label)
+                mi.connect("activate", lambda _w, c=cmd: detached_run(c))
+                menu.append(mi)
+            menu.show_all()
+            menu.popup_at_widget(widget, Gdk.Gravity.NORTH, Gdk.Gravity.SOUTH, None)
+            return True
+        return False
 
     def _net_state(self):
         try:
@@ -2553,6 +2577,10 @@ class Panel(Gtk.Window):
                     self._setup_tray()
                 except Exception as e:
                     sys.stderr.write("tray: %s\n" % e)
+                try:
+                    self._setup_sni_tray()
+                except Exception as e:
+                    sys.stderr.write("sni: %s\n" % e)
 
     def _reserve_strut(self):
         xid = self.get_window().get_xid()
@@ -2630,6 +2658,315 @@ class Panel(Gtk.Window):
                 GLib.idle_add(lambda a=action: detached_run(a))
             _ = mod
         return True
+
+    # ---------- bandeja StatusNotifier / AppIndicator (host DBus) ----------
+    _SNI_WATCHER_XML = """
+    <node><interface name="org.kde.StatusNotifierWatcher">
+      <method name="RegisterStatusNotifierItem"><arg type="s" direction="in"/></method>
+      <method name="RegisterStatusNotifierHost"><arg type="s" direction="in"/></method>
+      <property name="RegisteredStatusNotifierItems" type="as" access="read"/>
+      <property name="IsStatusNotifierHostRegistered" type="b" access="read"/>
+      <property name="ProtocolVersion" type="i" access="read"/>
+      <signal name="StatusNotifierItemRegistered"><arg type="s"/></signal>
+      <signal name="StatusNotifierItemUnregistered"><arg type="s"/></signal>
+      <signal name="StatusNotifierHostRegistered"/>
+    </interface></node>"""
+
+    def _setup_sni_tray(self):
+        """Host de StatusNotifier (AppIndicator): muestra en la bandeja los iconos
+        de apps que NO usan XEmbed (FactuPOS Print/Bridge via pystray, etc.)."""
+        self._sni_bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        self._sni_items = {}          # service -> {box, busname, path}
+        self._sni_regd = []           # lista de services (rol watcher)
+        self._sni_node = Gio.DBusNodeInfo.new_for_xml(self._SNI_WATCHER_XML)
+        self._sni_host = "org.kde.StatusNotifierHost-%d" % os.getpid()
+        Gio.bus_own_name_on_connection(
+            self._sni_bus, self._sni_host, Gio.BusNameOwnerFlags.NONE, None, None)
+        # Intentar ser el Watcher; si ya existe (Cinnamon), actuar solo de host.
+        Gio.bus_own_name_on_connection(
+            self._sni_bus, "org.kde.StatusNotifierWatcher",
+            Gio.BusNameOwnerFlags.NONE,
+            lambda *_a: self._sni_become_watcher(),
+            lambda *_a: self._sni_become_host())
+        # Quitar items cuando su app se cierra.
+        self._sni_bus.signal_subscribe(
+            "org.freedesktop.DBus", "org.freedesktop.DBus", "NameOwnerChanged",
+            "/org/freedesktop/DBus", None, Gio.DBusSignalFlags.NONE,
+            self._sni_name_owner_changed)
+
+    def _sni_become_watcher(self):
+        self._sni_bus.register_object(
+            "/StatusNotifierWatcher", self._sni_node.interfaces[0],
+            self._sni_watcher_call, self._sni_watcher_getprop, None)
+        try:
+            self._sni_bus.emit_signal(None, "/StatusNotifierWatcher",
+                "org.kde.StatusNotifierWatcher", "StatusNotifierHostRegistered", None)
+        except Exception:
+            pass
+
+    def _sni_become_host(self):
+        try:
+            self._sni_bus.call_sync(
+                "org.kde.StatusNotifierWatcher", "/StatusNotifierWatcher",
+                "org.kde.StatusNotifierWatcher", "RegisterStatusNotifierHost",
+                GLib.Variant("(s)", (self._sni_host,)), None,
+                Gio.DBusCallFlags.NONE, -1, None)
+        except Exception as e:
+            sys.stderr.write("sni host: %s\n" % e)
+        for sig in ("StatusNotifierItemRegistered", "StatusNotifierItemUnregistered"):
+            self._sni_bus.signal_subscribe(
+                None, "org.kde.StatusNotifierWatcher", sig, "/StatusNotifierWatcher",
+                None, Gio.DBusSignalFlags.NONE, self._sni_watcher_signal)
+        try:
+            v = self._sni_bus.call_sync(
+                "org.kde.StatusNotifierWatcher", "/StatusNotifierWatcher",
+                "org.freedesktop.DBus.Properties", "Get",
+                GLib.Variant("(ss)", ("org.kde.StatusNotifierWatcher",
+                                      "RegisteredStatusNotifierItems")),
+                GLib.VariantType("(v)"), Gio.DBusCallFlags.NONE, -1, None)
+            for svc in v.unpack()[0]:
+                self._sni_add_item(svc)
+        except Exception as e:
+            sys.stderr.write("sni list: %s\n" % e)
+
+    # --- rol watcher: handlers ---
+    def _sni_watcher_call(self, conn, sender, path, iface, method, params, inv):
+        if method == "RegisterStatusNotifierItem":
+            arg = params.unpack()[0]
+            service = (sender + arg) if arg.startswith("/") else (arg + "/StatusNotifierItem")
+            if service not in self._sni_regd:
+                self._sni_regd.append(service)
+                conn.emit_signal(None, "/StatusNotifierWatcher",
+                    "org.kde.StatusNotifierWatcher", "StatusNotifierItemRegistered",
+                    GLib.Variant("(s)", (service,)))
+                GLib.idle_add(self._sni_add_item, service)
+            inv.return_value(None)
+        elif method == "RegisterStatusNotifierHost":
+            conn.emit_signal(None, "/StatusNotifierWatcher",
+                "org.kde.StatusNotifierWatcher", "StatusNotifierHostRegistered", None)
+            inv.return_value(None)
+        else:
+            inv.return_value(None)
+
+    def _sni_watcher_getprop(self, conn, sender, path, iface, prop):
+        if prop == "RegisteredStatusNotifierItems":
+            return GLib.Variant("as", self._sni_regd)
+        if prop == "IsStatusNotifierHostRegistered":
+            return GLib.Variant("b", True)
+        if prop == "ProtocolVersion":
+            return GLib.Variant("i", 0)
+        return None
+
+    def _sni_watcher_signal(self, conn, sender, path, iface, signal, params):
+        svc = params.unpack()[0]
+        if signal == "StatusNotifierItemRegistered":
+            self._sni_add_item(svc)
+        else:
+            self._sni_remove_item(svc)
+
+    def _sni_name_owner_changed(self, conn, sender, path, iface, signal, params):
+        name, old, new = params.unpack()
+        if new == "":            # una app se fue
+            for svc in list(self._sni_items):
+                if svc.split("/", 1)[0] == name or svc.startswith(name):
+                    self._sni_remove_item(svc)
+
+    # --- render de los items ---
+    def _sni_split(self, service):
+        i = service.find("/")
+        return (service, "/StatusNotifierItem") if i < 0 else (service[:i], service[i:])
+
+    def _sni_prop(self, busname, path, name):
+        v = self._sni_bus.call_sync(
+            busname, path, "org.freedesktop.DBus.Properties", "Get",
+            GLib.Variant("(ss)", ("org.kde.StatusNotifierItem", name)),
+            GLib.VariantType("(v)"), Gio.DBusCallFlags.NONE, 2000, None)
+        return v.unpack()[0]
+
+    def _sni_add_item(self, service):
+        if service in self._sni_items:
+            return
+        busname, path = self._sni_split(service)
+        ev = Gtk.EventBox()
+        ev.set_visible_window(False)
+        img = Gtk.Image()
+        ev.add(img)
+        ev.connect("button-press-event", self._sni_click, service)
+        ev.connect("scroll-event", self._sni_scroll, service)
+        self._sni_items[service] = {"box": ev, "img": img, "busname": busname, "path": path}
+        self._tray_box.pack_start(ev, False, False, 1)
+        ev.show_all()
+        self._sni_refresh_icon(service)
+        for sig in ("NewIcon", "NewAttentionIcon", "NewStatus", "NewToolTip"):
+            self._sni_bus.signal_subscribe(
+                busname, "org.kde.StatusNotifierItem", sig, path, None,
+                Gio.DBusSignalFlags.NONE,
+                lambda *a, s=service: GLib.idle_add(self._sni_refresh_icon, s))
+
+    def _sni_remove_item(self, service):
+        it = self._sni_items.pop(service, None)
+        if it:
+            it["box"].destroy()
+        if service in self._sni_regd:
+            self._sni_regd.remove(service)
+
+    def _sni_refresh_icon(self, service):
+        it = self._sni_items.get(service)
+        if not it:
+            return False
+        busname, path, img = it["busname"], it["path"], it["img"]
+        px = None
+        try:
+            theme_path = ""
+            try:
+                theme_path = self._sni_prop(busname, path, "IconThemePath") or ""
+            except Exception:
+                pass
+            name = ""
+            try:
+                name = self._sni_prop(busname, path, "IconName") or ""
+            except Exception:
+                pass
+            if name and theme_path:
+                for ext in (".png", ".svg", ""):
+                    fp = os.path.join(theme_path, name + ext)
+                    if os.path.exists(fp):
+                        px = GdkPixbuf.Pixbuf.new_from_file_at_size(fp, 22, 22)
+                        break
+            if px is None and name:
+                try:
+                    px = Gtk.IconTheme.get_default().load_icon(name, 22, 0)
+                except Exception:
+                    px = None
+            if px is None:
+                px = self._sni_pixmap(busname, path)
+        except Exception as e:
+            sys.stderr.write("sni icon: %s\n" % e)
+        if px is not None:
+            img.set_from_pixbuf(px)
+        else:
+            img.set_from_icon_name("application-x-executable", Gtk.IconSize.MENU)
+        try:
+            tt = self._sni_prop(busname, path, "Title")
+            if tt:
+                it["box"].set_tooltip_text(str(tt))
+        except Exception:
+            pass
+        return False
+
+    def _sni_pixmap(self, busname, path):
+        """Convierte IconPixmap (ARGB32 big-endian) al pixbuf mas grande disponible."""
+        try:
+            arr = self._sni_prop(busname, path, "IconPixmap")
+        except Exception:
+            return None
+        if not arr:
+            return None
+        best = max(arr, key=lambda t: t[0] * t[1])
+        w, h, data = best[0], best[1], bytes(best[2])
+        if w <= 0 or h <= 0 or len(data) < w * h * 4:
+            return None
+        out = bytearray(len(data))
+        for i in range(0, w * h * 4, 4):       # ARGB -> RGBA
+            out[i] = data[i + 1]
+            out[i + 1] = data[i + 2]
+            out[i + 2] = data[i + 3]
+            out[i + 3] = data[i]
+        pb = GdkPixbuf.Pixbuf.new_from_bytes(
+            GLib.Bytes.new(bytes(out)), GdkPixbuf.Colorspace.RGB, True, 8, w, h, w * 4)
+        return pb.scale_simple(22, 22, GdkPixbuf.InterpType.BILINEAR)
+
+    def _sni_click(self, widget, event, service):
+        it = self._sni_items.get(service)
+        if not it:
+            return
+        busname, path = it["busname"], it["path"]
+        if event.button == 1:
+            self._sni_invoke(busname, path, "Activate", int(event.x_root), int(event.y_root))
+        elif event.button == 2:
+            self._sni_invoke(busname, path, "SecondaryActivate", int(event.x_root), int(event.y_root))
+        elif event.button == 3:
+            menupath = ""
+            try:
+                menupath = self._sni_prop(busname, path, "Menu") or ""
+            except Exception:
+                pass
+            if menupath:
+                self._sni_show_dbusmenu(busname, menupath, widget)
+            else:
+                self._sni_invoke(busname, path, "ContextMenu",
+                                 int(event.x_root), int(event.y_root))
+
+    def _sni_scroll(self, widget, event, service):
+        it = self._sni_items.get(service)
+        if not it:
+            return
+        delta = -1 if event.direction == Gdk.ScrollDirection.UP else 1
+        try:
+            self._sni_bus.call(
+                it["busname"], it["path"], "org.kde.StatusNotifierItem", "Scroll",
+                GLib.Variant("(is)", (delta, "vertical")), None,
+                Gio.DBusCallFlags.NONE, -1, None, None, None)
+        except Exception:
+            pass
+
+    def _sni_invoke(self, busname, path, method, x, y):
+        try:
+            self._sni_bus.call(
+                busname, path, "org.kde.StatusNotifierItem", method,
+                GLib.Variant("(ii)", (x, y)), None,
+                Gio.DBusCallFlags.NONE, -1, None, None, None)
+        except Exception as e:
+            sys.stderr.write("sni %s: %s\n" % (method, e))
+
+    # --- menu via com.canonical.dbusmenu ---
+    def _sni_show_dbusmenu(self, busname, menupath, anchor):
+        try:
+            v = self._sni_bus.call_sync(
+                busname, menupath, "com.canonical.dbusmenu", "GetLayout",
+                GLib.Variant("(iias)", (0, -1, [])),
+                GLib.VariantType("(u(ia{sv}av))"), Gio.DBusCallFlags.NONE, 3000, None)
+            _rev, layout = v.unpack()
+        except Exception as e:
+            sys.stderr.write("dbusmenu: %s\n" % e)
+            return
+        menu = Gtk.Menu()
+        for child in layout[2]:
+            mi = self._dbusmenu_item(busname, menupath, child)
+            if mi:
+                menu.append(mi)
+        menu.show_all()
+        menu.popup_at_widget(anchor, Gdk.Gravity.NORTH, Gdk.Gravity.SOUTH, None)
+
+    def _dbusmenu_item(self, busname, menupath, node):
+        nid, props, children = node
+        if props.get("visible", True) is False:
+            return None
+        if props.get("type", "") == "separator":
+            return Gtk.SeparatorMenuItem()
+        label = (props.get("label", "") or "").replace("_", "")
+        mi = Gtk.MenuItem(label=label)
+        if props.get("enabled", True) is False:
+            mi.set_sensitive(False)
+        if children:
+            sub = Gtk.Menu()
+            for c in children:
+                ci = self._dbusmenu_item(busname, menupath, c)
+                if ci:
+                    sub.append(ci)
+            mi.set_submenu(sub)
+        else:
+            mi.connect("activate", lambda _w, i=nid: self._dbusmenu_event(busname, menupath, i))
+        return mi
+
+    def _dbusmenu_event(self, busname, menupath, nid):
+        try:
+            self._sni_bus.call(
+                busname, menupath, "com.canonical.dbusmenu", "Event",
+                GLib.Variant("(isvu)", (nid, "clicked", GLib.Variant("s", ""), 0)),
+                None, Gio.DBusCallFlags.NONE, -1, None, None, None)
+        except Exception as e:
+            sys.stderr.write("dbusmenu event: %s\n" % e)
 
     # ---------- bandeja del sistema (XEmbed) ----------
     def _setup_tray(self):

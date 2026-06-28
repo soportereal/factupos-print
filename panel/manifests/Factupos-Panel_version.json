@@ -1,6 +1,6 @@
 {
-  "version": "1.5.9",
+  "version": "1.5.10",
   "py": "https://soportereal.com/software/factupos-app/linux/factupos-panel.py",
   "deb": "https://soportereal.com/software/factupos-app/linux/Factupos-Panel.deb",
-  "notes": "Menu Sistema: nuevo item 'Actualizar aplicaciones FactuPOS' (dispara el actualizador, actualiza todas las apps)."
+  "notes": "Bandeja: soporte StatusNotifier/AppIndicator (muestra iconos de Print/Bridge y otras apps). Icono de Red: clic derecho -> Conectar/Desconectar/Configurar."
 }
