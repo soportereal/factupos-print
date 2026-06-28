@@ -16,7 +16,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib, Pango  # noqa: E402
 
-VERSION = "1.0.1"                                 # fuente única de versión
+VERSION = "1.0.2"                                 # fuente única de versión
 OS_VERSION_FILE = "/etc/factupos-os-version"
 
 # Auto-actualización (mismo esquema que factupos-panel).
@@ -35,35 +35,35 @@ def _vtuple(v):
 
 # ---- paleta navy FactuPOS ----
 CSS = b"""
-/* Tema NAVY moderno y FLAT: colores solidos (sin degradados), tabs con acento
-   inferior, tarjetas planas, contrastes altos verificados. */
-.fp-win { background-color: #0e1b30; }
-.fp-header { background-color: #14284a; }
+/* Tema CLARO moderno y FLAT con acentos NAVY: fondo claro + texto oscuro;
+   header/titulos/botones navy. Letra grande, contrastes AA verificados. */
+.fp-win { background-color: #eef2f8; }
+.fp-header { background-color: #16305c; }
 .fp-header label { color: #ffffff; }
 .fp-title { font-size: 1.7em; font-weight: bold; }
-.fp-sub { color: #aebfdb; font-size: 1.05em; }
-notebook { background-color: #0e1b30; }
-notebook header { background-color: #0e1b30; }
-notebook header tabs tab { background-color: transparent; color: #93a6c6; padding: 10px 18px;
+.fp-sub { color: #cdddf2; font-size: 1.05em; }
+notebook { background-color: #eef2f8; }
+notebook header { background-color: #e3e9f2; }
+notebook header tabs tab { background-color: transparent; color: #5a6b86; padding: 10px 18px;
                            font-size: 1.12em; border: none; border-bottom: 2px solid transparent; margin: 0 2px; }
-notebook header tabs tab:checked { color: #ffffff; border-bottom: 2px solid #4f8fe0; }
-notebook header tabs tab:hover { color: #dce6f5; }
-.fp-card { background-color: #16294a; border: 1px solid #26406d; border-radius: 10px;
+notebook header tabs tab:checked { color: #16305c; border-bottom: 2px solid #285296; }
+notebook header tabs tab:hover { color: #1f2d44; }
+.fp-card { background-color: #ffffff; border: 1px solid #d3dce8; border-radius: 10px;
            padding: 9px 6px; margin: 7px 9px; }
-.fp-cardtitle { color: #66a6ee; font-weight: bold; font-size: 1.22em; padding: 5px 10px 3px 10px; }
-.fp-key { color: #aab9d4; font-size: 1.12em; padding: 6px 10px; }
-.fp-val { color: #f3f7fd; font-size: 1.12em; padding: 6px 10px; }
-.fp-val-strong { color: #4fdc93; font-weight: bold; font-size: 1.12em; }
-.fp-val-warn { color: #f7b85a; font-weight: bold; font-size: 1.12em; }
-.fp-val-bad  { color: #ff8a8a; font-weight: bold; font-size: 1.12em; }
-.fp-foot { background-color: #0e1b30; }
-.fp-btn { background-image: none; background-color: #2d5aa6; color: #ffffff;
+.fp-cardtitle { color: #1d4ed8; font-weight: bold; font-size: 1.22em; padding: 5px 10px 3px 10px; }
+.fp-key { color: #54627c; font-size: 1.12em; padding: 6px 10px; }
+.fp-val { color: #1e293b; font-size: 1.12em; padding: 6px 10px; }
+.fp-val-strong { color: #15803d; font-weight: bold; font-size: 1.12em; }
+.fp-val-warn { color: #b45309; font-weight: bold; font-size: 1.12em; }
+.fp-val-bad  { color: #dc2626; font-weight: bold; font-size: 1.12em; }
+.fp-foot { background-color: #e3e9f2; }
+.fp-btn { background-image: none; background-color: #285296; color: #ffffff;
           border: none; padding: 9px 18px; border-radius: 8px; font-weight: bold; font-size: 1.08em; }
-.fp-btn:hover { background-color: #366ac0; }
-progressbar trough { background-color: #1b2e4f; min-height: 12px; border-radius: 6px; }
-progressbar progress { background-color: #4f8fe0; border-radius: 6px; }
-levelbar block.filled { background-color: #4f8fe0; }
-levelbar block.empty { background-color: #1b2e4f; }
+.fp-btn:hover { background-color: #34619f; }
+progressbar trough { background-color: #d6deea; min-height: 12px; border-radius: 6px; }
+progressbar progress { background-color: #2563eb; border-radius: 6px; }
+levelbar block.filled { background-color: #2563eb; }
+levelbar block.empty { background-color: #d6deea; }
 """
 
 
