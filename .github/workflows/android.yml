@@ -1,0 +1,57 @@
+name: Build Android APKs
+
+# Compila los APK de las apps Android (Gradle). Se usa assembleDebug: el APK
+# queda firmado con la clave debug (instalable por sideload), igual que el
+# build local historico (build.sh). NO usa la keystore release (.jks) — esa
+# esta gitignoreada y fuera del repo.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'bridge-android/**'
+      - 'sms-android/**'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - dir: bridge-android
+            apk: FactuPOS-Bridge-Android.apk
+          - dir: sms-android
+            apk: FactuPOS-SMS-Android.apk
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Build debug APK
+        working-directory: ${{ matrix.dir }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+
+      - name: Renombrar APK
+        working-directory: ${{ matrix.dir }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk "${{ matrix.apk }}"
+          ls -la "${{ matrix.apk }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.dir }}-apk
+          path: ${{ matrix.dir }}/${{ matrix.apk }}
+          if-no-files-found: error
+          retention-days: 90

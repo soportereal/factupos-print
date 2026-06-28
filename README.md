@@ -22,10 +22,14 @@ fingerprint/   Huella / biometría                        · Win         · fing
    ├── windows/   código C#/.NET (DigitalPersona SDK) — fuente del servicio
    └── installer/ Inno Setup (empaqueta el ZIP de binarios ya compilados)
 biometria-linux/ Huella en kiosko (Java)                 · Linux       · (build-deb.sh / packaging)
-sms-android/   Envío de SMS (Android, Gradle)            · Android     · (gradlew)
+bridge-android/ Print Bridge Sunmi (Android, Gradle)     · Android     · android.yml
+sms-android/   Envío de SMS (Android, Gradle)            · Android     · android.yml
 
-.github/workflows/  print · bridge · backup · ia · fingerprint · panel · printer-inst
+.github/workflows/  print · bridge · backup · ia · fingerprint · panel · printer-inst · android
 ```
+
+Android: `android.yml` compila ambos APK con `assembleDebug` (firma debug,
+instalable por sideload). La keystore release (`.jks`) está fuera del repo.
 
 > El **bridge Android (Sunmi)** y el **SoporteRemoto (RustDesk SRL)** todavía viven
 > en carpetas aparte (`factupos.local/apps/factupos-bridge-android`,
