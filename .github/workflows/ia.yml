@@ -51,10 +51,8 @@ jobs:
             suffix: ""
             msystem: MINGW64
             prefix: mingw-w64-x86_64
-          - arch: x86
-            suffix: "-x86"
-            msystem: MINGW32
-            prefix: mingw-w64-i686
+          # Sin x86: MSYS2 ya no provee GTK3 de 32 bits (mingw-w64-i686-gtk3/
+          # -python-gobject). Factupos-IA es solo x64.
     steps:
       - uses: actions/checkout@v4
       - uses: msys2/setup-msys2@v2
@@ -89,18 +87,11 @@ jobs:
         with:
           name: factupos-ia-exe-x64
           path: ia/installer
-      - uses: actions/download-artifact@v4
-        with:
-          name: factupos-ia-exe-x86
-          path: ia/installer
       - name: Instalar Inno Setup
         run: choco install innosetup -y --no-progress
       - name: Compilar instalador x64
         shell: cmd
         run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DARCH=x64 ia\installer\factupos-ia.iss'
-      - name: Compilar instalador x86
-        shell: cmd
-        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DARCH=x86 ia\installer\factupos-ia.iss'
       - uses: actions/upload-artifact@v4
         with:
           name: factupos-ia-installers
