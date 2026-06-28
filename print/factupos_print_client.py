@@ -56,8 +56,9 @@ LOG_FILE = os.path.join(APP_DIR, 'print_client.log')
 # así que NO se puede usar el flujo de Windows (.exe + updater.bat). En su lugar
 # se reemplaza el propio .py en sitio (el postinst deja /opt/factupos-print en
 # chmod 777 → escribible sin sudo) y el proceso se re-lanza.
-# OJO: el server WS anuncia la versión leyendo el manifest print_client_version.json
-# y manda un único downloadUrl (el .exe de Windows). En Linux ese downloadUrl se
+# OJO: el server WS anuncia la versión leyendo el manifest Factupos-Print_version.json
+# (antes print_client_version.json, que queda como alias temporal) y manda un único
+# downloadUrl (el .exe de Windows). En Linux ese downloadUrl se
 # IGNORA y se baja el .py de esta URL fija. El .py publicado acá DEBE ir en la
 # misma versión que el manifest, o el cliente entra en loop de update.
 LINUX_UPDATE_URL = 'https://factupos.com/downloads/factupos_print_client.py'
