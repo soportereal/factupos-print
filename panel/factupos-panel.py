@@ -54,7 +54,7 @@ except Exception:
     HAVE_XLIB = False
 
 APP_ID = "com.soportereal.factupos.panel"
-VERSION = "1.5.16"                                # fuente única de versión
+VERSION = "1.5.17"                                # fuente única de versión
 ASSETS = "/usr/share/factupos-os"               # íconos de marca del FactuPOS OS
 START_ICON = os.path.join(ASSETS, "start-icon.png")
 CONFIG_MENU = "/etc/factupos-panel/menu.json"   # menú Inicio personalizable
@@ -873,6 +873,11 @@ class Panel(Gtk.Window):
         self._wifi_switch.set_active(self._wifi_enabled())
         self._wifi_switch.connect("notify::active", self._on_wifi_toggle)
         hdr.pack_start(self._wifi_switch, False, False, 0)
+        close = Gtk.Button(label="✕")
+        close.set_relief(Gtk.ReliefStyle.NONE)
+        close.set_tooltip_text("Cerrar")
+        close.connect("clicked", lambda *_: self._close_net_win())
+        hdr.pack_end(close, False, False, 0)
         box.pack_start(hdr, False, False, 0)
         box.pack_start(Gtk.Separator(), False, False, 0)
 

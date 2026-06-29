@@ -1,6 +1,6 @@
 {
-  "version": "1.5.16",
+  "version": "1.5.17",
   "py": "https://soportereal.com/software/factupos-app/linux/factupos-panel.py",
   "deb": "https://soportereal.com/software/factupos-app/linux/Factupos-Panel.deb",
-  "notes": "Icono de Red: clic (izq o der) abre el menu Conectar/Desconectar/Configurar (Configurar abre la ventana de IP)."
+  "notes": "Ventana de Red: boton X (cerrar) en el encabezado."
 }
