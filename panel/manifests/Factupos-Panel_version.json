@@ -1,6 +1,6 @@
 {
-  "version": "1.5.12",
+  "version": "1.5.13",
   "py": "https://soportereal.com/software/factupos-app/linux/factupos-panel.py",
   "deb": "https://soportereal.com/software/factupos-app/linux/Factupos-Panel.deb",
-  "notes": "Bandeja SNI: el clic en el icono ya NO dispara tambien el menu del panel (return True). Clic = menu de la app."
+  "notes": "Bandeja: un clic abre la app (dispara 'Mostrar'). AnyDesk (XEmbed) clamp de tamano para que no se agrande."
 }

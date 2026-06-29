@@ -54,7 +54,7 @@ except Exception:
     HAVE_XLIB = False
 
 APP_ID = "com.soportereal.factupos.panel"
-VERSION = "1.5.12"                                # fuente única de versión
+VERSION = "1.5.13"                                # fuente única de versión
 ASSETS = "/usr/share/factupos-os"               # íconos de marca del FactuPOS OS
 START_ICON = os.path.join(ASSETS, "start-icon.png")
 CONFIG_MENU = "/etc/factupos-panel/menu.json"   # menú Inicio personalizable
@@ -2898,15 +2898,56 @@ class Panel(Gtk.Window):
             menupath = self._sni_prop(busname, path, "Menu") or ""
         except Exception:
             menupath = ""
-        # Si la app tiene menu (AppIndicator: Print/Bridge) cualquier clic lo
-        # muestra (Activate no funciona en menu-only). Sin menu: izq=Activate.
-        if menupath:
-            self._sni_show_dbusmenu(busname, menupath, widget)
-        elif event.button == 1:
-            self._sni_invoke(busname, path, "Activate", x, y)
+        if event.button == 1:
+            # Clic izq.: abrir la app directo. Si es menu-only (Print/Bridge),
+            # dispara su item tipo "Mostrar"; si no lo hay, muestra el menu.
+            if menupath:
+                did = self._sni_default_item(busname, menupath)
+                if did is not None:
+                    self._dbusmenu_event(busname, menupath, did)
+                else:
+                    self._sni_show_dbusmenu(busname, menupath, widget)
+            else:
+                self._sni_invoke(busname, path, "Activate", x, y)
         else:
-            self._sni_invoke(busname, path, "ContextMenu", x, y)
+            # Clic der.: menu completo.
+            if menupath:
+                self._sni_show_dbusmenu(busname, menupath, widget)
+            else:
+                self._sni_invoke(busname, path, "ContextMenu", x, y)
         return True   # frena la propagacion -> el panel no abre TAMBIEN su menu
+
+    _SNI_SHOW_WORDS = ("mostrar", "show", "abrir", "open", "restaurar", "ventana", "ver")
+
+    def _sni_default_item(self, busname, menupath):
+        """Busca en el dbusmenu un item hoja tipo 'Mostrar/Abrir' (para el clic
+        izq.). Devuelve su id, o None si no hay (se muestra el menu completo)."""
+        try:
+            v = self._sni_bus.call_sync(
+                busname, menupath, "com.canonical.dbusmenu", "GetLayout",
+                GLib.Variant("(iias)", (0, -1, [])),
+                GLib.VariantType("(u(ia{sv}av))"), Gio.DBusCallFlags.NONE, 3000, None)
+            _rev, layout = v.unpack()
+        except Exception:
+            return None
+        found = [None]
+
+        def walk(node):
+            if found[0] is not None:
+                return
+            nid, props, children = node
+            label = (props.get("label", "") or "").replace("_", "").strip().lower()
+            is_sep = props.get("type", "") == "separator"
+            if (not children and not is_sep and props.get("enabled", True)
+                    and props.get("visible", True)
+                    and any(w in label for w in self._SNI_SHOW_WORDS)):
+                found[0] = nid
+                return
+            for c in children:
+                walk(c)
+        for c in layout[2]:
+            walk(c)
+        return found[0]
 
     def _sni_scroll(self, widget, event, service):
         it = self._sni_items.get(service)
@@ -3060,6 +3101,15 @@ class Panel(Gtk.Window):
                 _embed()
             else:
                 sock.connect("realize", _embed)
+            # Clamp: si el plug (AnyDesk) se vuelve a agrandar, re-achicarlo.
+            sock._fp_clamp = 0
+
+            def _clamp(s, alloc, _xid=xid, _icon=icon):
+                if (alloc.width > _icon + 1 or alloc.height > _icon + 1) and s._fp_clamp < 40:
+                    s._fp_clamp += 1
+                    s.set_size_request(_icon, _icon)
+                    GLib.idle_add(self._tray_force_size, _xid, _icon)
+            sock.connect("size-allocate", _clamp)
             # si la app cierra su icono, soltar el socket
             sock.connect("plug-removed", lambda _s: (_s.destroy() or True))
         except Exception as e:
