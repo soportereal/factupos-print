@@ -54,7 +54,7 @@ except Exception:
     HAVE_XLIB = False
 
 APP_ID = "com.soportereal.factupos.panel"
-VERSION = "1.5.15"                                # fuente única de versión
+VERSION = "1.5.16"                                # fuente única de versión
 ASSETS = "/usr/share/factupos-os"               # íconos de marca del FactuPOS OS
 START_ICON = os.path.join(ASSETS, "start-icon.png")
 CONFIG_MENU = "/etc/factupos-panel/menu.json"   # menú Inicio personalizable
@@ -645,8 +645,7 @@ class Panel(Gtk.Window):
         self.net_img = Gtk.Image.new_from_icon_name(
             "network-offline-symbolic", Gtk.IconSize.LARGE_TOOLBAR)
         self.net_btn.add(self.net_img)
-        self.net_btn.set_tooltip_text("Red / WiFi  (clic der.: conectar/desconectar/configurar)")
-        self.net_btn.connect("clicked", self.open_network)
+        self.net_btn.set_tooltip_text("Red / WiFi  (Conectar / Desconectar / Configurar)")
         self.net_btn.connect("button-press-event", self._net_btn_press)
         root.pack_start(self.net_btn, False, False, 0)
 
@@ -719,8 +718,8 @@ class Panel(Gtk.Window):
         return True
 
     def _net_btn_press(self, widget, event):
-        """Clic derecho en el icono de red -> menu Conectar/Desconectar/Configurar."""
-        if event.button == 3:
+        """Clic (izq o der) en el icono de red -> menu Conectar/Desconectar/Configurar."""
+        if event.button in (1, 3):
             menu = Gtk.Menu()
             menu.get_style_context().add_class("fp-flyout")
             for label, cmd in (("Conectar", "nmcli networking on"),

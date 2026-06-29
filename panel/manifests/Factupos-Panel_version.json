@@ -1,6 +1,6 @@
 {
-  "version": "1.5.15",
+  "version": "1.5.16",
   "py": "https://soportereal.com/software/factupos-app/linux/factupos-panel.py",
   "deb": "https://soportereal.com/software/factupos-app/linux/Factupos-Panel.deb",
-  "notes": "Bandeja XEmbed: iconos centrados (valign) y sin estirarse a lo alto de la barra (AnyDesk, teclado EN ya no llenan la altura)."
+  "notes": "Icono de Red: clic (izq o der) abre el menu Conectar/Desconectar/Configurar (Configurar abre la ventana de IP)."
 }
