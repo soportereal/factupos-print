@@ -54,7 +54,7 @@ except Exception:
     HAVE_XLIB = False
 
 APP_ID = "com.soportereal.factupos.panel"
-VERSION = "1.5.11"                                # fuente única de versión
+VERSION = "1.5.12"                                # fuente única de versión
 ASSETS = "/usr/share/factupos-os"               # íconos de marca del FactuPOS OS
 START_ICON = os.path.join(ASSETS, "start-icon.png")
 CONFIG_MENU = "/etc/factupos-panel/menu.json"   # menú Inicio personalizable
@@ -2887,32 +2887,26 @@ class Panel(Gtk.Window):
     def _sni_click(self, widget, event, service):
         it = self._sni_items.get(service)
         if not it:
-            return
+            return True
         busname, path = it["busname"], it["path"]
         x, y = int(event.x_root), int(event.y_root)
         if event.button == 2:
             self._sni_invoke(busname, path, "SecondaryActivate", x, y)
-            return
-        is_menu = False
-        try:
-            is_menu = bool(self._sni_prop(busname, path, "ItemIsMenu"))
-        except Exception:
-            is_menu = False
-        # Clic izq. en apps que SÍ soportan Activate -> abrir la app directo.
-        if event.button == 1 and not is_menu:
-            self._sni_invoke(busname, path, "Activate", x, y)
-            return
-        # Menu-only (AppIndicator: Print/Bridge) o clic derecho -> mostrar su menu.
+            return True
         menupath = ""
         try:
             menupath = self._sni_prop(busname, path, "Menu") or ""
         except Exception:
-            pass
+            menupath = ""
+        # Si la app tiene menu (AppIndicator: Print/Bridge) cualquier clic lo
+        # muestra (Activate no funciona en menu-only). Sin menu: izq=Activate.
         if menupath:
             self._sni_show_dbusmenu(busname, menupath, widget)
+        elif event.button == 1:
+            self._sni_invoke(busname, path, "Activate", x, y)
         else:
             self._sni_invoke(busname, path, "ContextMenu", x, y)
-        return
+        return True   # frena la propagacion -> el panel no abre TAMBIEN su menu
 
     def _sni_scroll(self, widget, event, service):
         it = self._sni_items.get(service)

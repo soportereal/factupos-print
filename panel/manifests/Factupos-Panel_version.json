@@ -1,6 +1,6 @@
 {
-  "version": "1.5.11",
+  "version": "1.5.12",
   "py": "https://soportereal.com/software/factupos-app/linux/factupos-panel.py",
   "deb": "https://soportereal.com/software/factupos-app/linux/Factupos-Panel.deb",
-  "notes": "Bandeja StatusNotifier/AppIndicator (Print/Bridge con su icono real, clic = menu). AnyDesk XEmbed re-forzado a tamano chico. Red: clic der Conectar/Desconectar/Configurar (abre la ventana de IP propia)."
+  "notes": "Bandeja SNI: el clic en el icono ya NO dispara tambien el menu del panel (return True). Clic = menu de la app."
 }
