@@ -54,7 +54,7 @@ except Exception:
     HAVE_XLIB = False
 
 APP_ID = "com.soportereal.factupos.panel"
-VERSION = "1.5.13"                                # fuente única de versión
+VERSION = "1.5.14"                                # fuente única de versión
 ASSETS = "/usr/share/factupos-os"               # íconos de marca del FactuPOS OS
 START_ICON = os.path.join(ASSETS, "start-icon.png")
 CONFIG_MENU = "/etc/factupos-panel/menu.json"   # menú Inicio personalizable
@@ -3117,9 +3117,18 @@ class Panel(Gtk.Window):
         return False
 
     def _tray_force_size(self, xid, icon):
-        """Re-fuerza el tamaño del icono XEmbed (apps que se re-agrandan, AnyDesk)."""
+        """Re-fuerza el tamaño del icono XEmbed (apps que se re-agrandan: AnyDesk,
+        indicador de teclado, etc.). Además del configure, fija hints min=max=icono
+        en WM_NORMAL_HINTS (las apps que ignoran el configure suelen respetar esto)."""
         try:
             w = self._traydisp.create_resource_object("window", xid)
+            try:
+                # PMinSize (1<<4) | PMaxSize (1<<5) = 48
+                w.set_wm_normal_hints(
+                    flags=48, min_width=icon, min_height=icon,
+                    max_width=icon, max_height=icon)
+            except Exception:
+                pass
             w.configure(width=icon, height=icon)
             w.map()
             self._traydisp.sync()
