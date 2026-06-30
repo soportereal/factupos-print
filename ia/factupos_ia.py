@@ -23,6 +23,7 @@ import datetime
 import subprocess
 import urllib.request
 import urllib.error
+import uuid
 
 import gi
 gi.require_version("Gtk", "3.0")
@@ -31,7 +32,7 @@ from gi.repository import Gtk, GLib, Pango, Gdk
 # ---------------------------------------------------------------------------
 # Versión y auto-actualización
 # ---------------------------------------------------------------------------
-VERSION = "1.0.2"                                   # fuente única de versión
+VERSION = "1.1.1"                                   # fuente única de versión
 UPDATE_INTERVAL = 6 * 3600                          # re-chequeo cada 6 horas
 MANIFEST_WIN   = "https://factupos.com/downloads/Factupos-IA_version.json"
 MANIFEST_LINUX = "https://soportereal.com/software/factupos-app/linux/Factupos-IA_version.json"
@@ -62,17 +63,67 @@ MODELO    = os.environ.get("SOPORTE_MODELO")    or _CFG.get("modelo")   or "clau
 
 PLACEHOLDER_TOKEN = "pon-aqui-un-token-largo-secreto"
 
+# URL OCULTA de donde la app baja el token vigente, sola, en cada arranque.
+# El técnico no la ve ni configura nada. La rotación se hace en
+# factupos.local/soporte_ia/token.php y todas las apps la toman al abrir.
+# 'x-app' es un filtro liviano (no es secreto: este .py se publica). El control
+# real contra abuso es el LÍMITE DE CONSUMO POR EQUIPO (device_id) en el proxy.
+TOKEN_FETCH_URL = (BASE_URL.rstrip("/") + "/v1/token")
+APP_IDENT       = "factupos-ia"
 
-def guardar_config_local(token, base_url=None):
-    """La app crea/escribe ~/.config/factupos-ia/config.json (no hay que tocar archivos a mano)."""
-    cfgdir = os.path.expanduser("~/.config/factupos-ia")
+
+def _ruta_config():
+    """Ruta del config.json que la app escribe (misma que lee primero)."""
+    if os.environ.get("APPDATA"):
+        cfgdir = os.path.join(os.environ["APPDATA"], "Factupos-IA")
+    else:
+        cfgdir = os.path.expanduser("~/.config/factupos-ia")
+    os.makedirs(cfgdir, exist_ok=True)
+    return os.path.join(cfgdir, "config.json")
+
+
+def _guardar_config(cfg):
+    """Escribe el dict de config completo (preserva device_id, base_url, token…)."""
     try:
-        os.makedirs(cfgdir, exist_ok=True)
-        with open(os.path.join(cfgdir, "config.json"), "w", encoding="utf-8") as f:
-            json.dump({"base_url": base_url or BASE_URL, "token": token}, f)
+        with open(_ruta_config(), "w", encoding="utf-8") as f:
+            json.dump(cfg, f)
         return True
     except Exception:
         return False
+
+
+# device_id: identificador único y estable de ESTE equipo. Se genera una sola vez
+# y se persiste; el proxy lo usa para limitar el consumo por equipo.
+DEVICE_ID = (_CFG.get("device_id") or "").strip()
+if not DEVICE_ID:
+    DEVICE_ID = uuid.uuid4().hex
+    _CFG["device_id"] = DEVICE_ID
+    _guardar_config(_CFG)
+
+
+def actualizar_token_remoto():
+    """Baja el token vigente del servidor y lo guarda solo. Silencioso:
+    si el server no responde, sigue con el token cacheado en config.json."""
+    global APP_TOKEN, BASE_URL
+    try:
+        req = urllib.request.Request(
+            TOKEN_FETCH_URL,
+            headers={"x-app": APP_IDENT, "x-device-id": DEVICE_ID,
+                     "Cache-Control": "no-cache"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.loads(r.read().decode("utf-8"))
+        tok = (data.get("token") or "").strip()
+        if tok:
+            APP_TOKEN = tok
+            if data.get("base_url"):
+                BASE_URL = str(data["base_url"]).strip()
+            _CFG["token"]    = APP_TOKEN
+            _CFG["base_url"] = BASE_URL
+            _guardar_config(_CFG)
+            return True
+    except Exception:
+        pass
+    return False
 
 SO   = platform.system()           # 'Windows' o 'Linux'
 HOST = socket.gethostname()
@@ -223,7 +274,9 @@ def llamar_claude(messages):
         BASE_URL.rstrip("/") + "/v1/messages",
         data=body, method="POST",
         headers={"content-type": "application/json",
-                 "Authorization": "Bearer " + APP_TOKEN})
+                 "Authorization": "Bearer " + APP_TOKEN,
+                 "x-device-id": DEVICE_ID,
+                 "x-hostname": HOST})
     with urllib.request.urlopen(req, timeout=180) as r:
         return json.loads(r.read().decode("utf-8"))
 
@@ -338,7 +391,8 @@ class SoporteApp(Gtk.Window):
         _css = Gtk.CssProvider()
         _css.load_from_data(
             b"entry.listo{background:#e8f5e9;border:2px solid #2e7d32;}"
-            b"entry.ocupado{background:#ffebee;border:2px solid #c62828;}")
+            b"entry.ocupado{background:#ffebee;border:2px solid #c62828;}"
+            b"textview, textview text{background:#ffffff;color:#000000;font-size:14px;}")
         Gtk.StyleContext.add_provider_for_screen(
             Gdk.Screen.get_default(), _css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
@@ -350,9 +404,6 @@ class SoporteApp(Gtk.Window):
         titulo = Gtk.Label(xalign=0)
         titulo.set_markup(f"<b>Factupos-IA</b>  v{VERSION}  —  {HOST} · {SO}")
         hdr.pack_start(titulo, True, True, 0)
-        btn_cfg = Gtk.Button(label="Configurar token")
-        btn_cfg.connect("clicked", self.pedir_token)
-        hdr.pack_start(btn_cfg, False, False, 0)
         btn_upd = Gtk.Button(label="Buscar actualización")
         btn_upd.connect("clicked", self.on_buscar_update)
         hdr.pack_start(btn_upd, False, False, 0)
@@ -365,13 +416,9 @@ class SoporteApp(Gtk.Window):
         self.vista.set_editable(False)
         self.vista.set_cursor_visible(False)
         self.vista.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
-        self.vista.override_font(Pango.FontDescription("Monospace 10"))
+        self.vista.override_font(Pango.FontDescription("Monospace 14"))
         scroll.add(self.vista)
         caja.pack_start(scroll, True, True, 0)
-
-        self.chk_confirmar = Gtk.CheckButton(label="Confirmar CADA comando (recomendado)")
-        self.chk_confirmar.set_active(True)
-        caja.pack_start(self.chk_confirmar, False, False, 0)
 
         fila = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         self.entrada = Gtk.Entry()
@@ -386,10 +433,7 @@ class SoporteApp(Gtk.Window):
 
         self.log(f"Factupos-IA v{VERSION} · conectado a: {BASE_URL}")
         if APP_TOKEN == PLACEHOLDER_TOKEN:
-            self.log("Falta el token — abriendo configuración…")
-            GLib.idle_add(self.pedir_token)
-        else:
-            self.log("Token: OK.")
+            self.log("⚠️ Sin conexión con el servidor de soporte. Reintentá más tarde.")
         self.log("Escribí el problema y presioná Enviar.\n")
 
     # --- utilidades de UI (seguras desde otros hilos) ---
@@ -417,7 +461,7 @@ class SoporteApp(Gtk.Window):
             ctx.remove_class("ocupado"); ctx.add_class("listo")
 
     def requiere_confirmacion(self, cmd):
-        return self.chk_confirmar.get_active() or es_peligroso(cmd)
+        return es_peligroso(cmd)
 
     def confirmar(self, titulo, detalle, motivo=""):
         """Bloquea el hilo de trabajo hasta que el técnico decide."""
@@ -457,41 +501,6 @@ class SoporteApp(Gtk.Window):
     def on_buscar_update(self, *_):
         self.log("Buscando actualizaciones…")
         threading.Thread(target=buscar_actualizacion, args=(self, True), daemon=True).start()
-
-    def pedir_token(self, *_):
-        """Ventana para pegar el token; la app lo guarda sola en config.json."""
-        global APP_TOKEN, BASE_URL
-        d = Gtk.Dialog(title="Configurar token — Factupos-IA", transient_for=self, modal=True)
-        d.add_button("Cancelar", Gtk.ResponseType.CANCEL)
-        ok = d.add_button("Guardar", Gtk.ResponseType.OK)
-        ok.get_style_context().add_class("suggested-action")
-        box = d.get_content_area()
-        box.set_spacing(6)
-        box.set_border_width(12)
-        box.add(Gtk.Label(label="Pegá el token (botón 📋 de factupos.local/soporte_ia/token.php):", xalign=0))
-        e_tok = Gtk.Entry()
-        e_tok.set_width_chars(50)
-        if APP_TOKEN != PLACEHOLDER_TOKEN:
-            e_tok.set_text(APP_TOKEN)
-        box.add(e_tok)
-        box.add(Gtk.Label(label="Servidor (base_url):", xalign=0))
-        e_url = Gtk.Entry()
-        e_url.set_width_chars(50)
-        e_url.set_text(BASE_URL)
-        box.add(e_url)
-        d.show_all()
-        if d.run() == Gtk.ResponseType.OK:
-            tok = e_tok.get_text().strip()
-            url = e_url.get_text().strip()
-            if tok:
-                APP_TOKEN = tok
-                BASE_URL = url or BASE_URL
-                if guardar_config_local(tok, BASE_URL):
-                    self.log("✅ Token guardado. Ya podés enviar.")
-                else:
-                    self.log("⚠️ No se pudo guardar (token activo solo esta sesión).")
-        d.destroy()
-        return False
 
     def on_enviar(self, *_):
         if self._busy:
@@ -544,6 +553,8 @@ class SoporteApp(Gtk.Window):
 
 
 def main():
+    # En cada arranque, bajar el token vigente del servidor (silencioso).
+    actualizar_token_remoto()
     app = SoporteApp()
     app.connect("destroy", Gtk.main_quit)
     app.show_all()
