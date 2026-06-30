@@ -32,7 +32,7 @@ from gi.repository import Gtk, GLib, Pango, Gdk
 # ---------------------------------------------------------------------------
 # Versión y auto-actualización
 # ---------------------------------------------------------------------------
-VERSION = "1.1.2"                                   # fuente única de versión
+VERSION = "1.1.3"                                   # fuente única de versión
 UPDATE_INTERVAL = 6 * 3600                          # re-chequeo cada 6 horas
 MANIFEST_WIN   = "https://factupos.com/downloads/Factupos-IA_version.json"
 MANIFEST_LINUX = "https://soportereal.com/software/factupos-app/linux/Factupos-IA_version.json"
@@ -390,7 +390,7 @@ class SoporteApp(Gtk.Window):
         # Estilos del campo: verde = listo para escribir, rojo = trabajando
         _css = Gtk.CssProvider()
         _css.load_from_data(
-            b"entry{background:#ffffff;color:#000000;caret-color:#000000;"
+            b"entry{background:#fff176;color:#000000;caret-color:#000000;"
             b"font-size:14px;padding:8px;}"
             b"entry.listo{border:2px solid #2e7d32;}"
             b"entry.ocupado{border:2px solid #c62828;}"
