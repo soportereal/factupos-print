@@ -32,9 +32,12 @@ from gi.repository import Gtk, GLib, Pango, Gdk
 # ---------------------------------------------------------------------------
 # Versión y auto-actualización
 # ---------------------------------------------------------------------------
-VERSION = "1.1.3"                                   # fuente única de versión
+VERSION = "1.1.4"                                   # fuente única de versión
 UPDATE_INTERVAL = 6 * 3600                          # re-chequeo cada 6 horas
-MANIFEST_WIN   = "https://factupos.com/downloads/Factupos-IA_version.json"
+# Ambos manifests en soportereal.com: es el server de la oficina, alcanzable
+# desde PCs remotas (igual que el proxy) y desplegable con deploy.sh. El público
+# factupos.com vive en AWS y NO tiene /downloads/ → daba 404 a clientes remotos.
+MANIFEST_WIN   = "https://soportereal.com/software/factupos-app/windows/Factupos-IA_version.json"
 MANIFEST_LINUX = "https://soportereal.com/software/factupos-app/linux/Factupos-IA_version.json"
 PY_LOCAL = os.path.expanduser("~/.local/share/factupos-ia/factupos_ia.py")
 
