@@ -32,7 +32,7 @@ from gi.repository import Gtk, GLib, Pango, Gdk
 # ---------------------------------------------------------------------------
 # Versión y auto-actualización
 # ---------------------------------------------------------------------------
-VERSION = "1.1.1"                                   # fuente única de versión
+VERSION = "1.1.2"                                   # fuente única de versión
 UPDATE_INTERVAL = 6 * 3600                          # re-chequeo cada 6 horas
 MANIFEST_WIN   = "https://factupos.com/downloads/Factupos-IA_version.json"
 MANIFEST_LINUX = "https://soportereal.com/software/factupos-app/linux/Factupos-IA_version.json"
@@ -390,8 +390,11 @@ class SoporteApp(Gtk.Window):
         # Estilos del campo: verde = listo para escribir, rojo = trabajando
         _css = Gtk.CssProvider()
         _css.load_from_data(
-            b"entry.listo{background:#e8f5e9;border:2px solid #2e7d32;}"
-            b"entry.ocupado{background:#ffebee;border:2px solid #c62828;}"
+            b"entry{background:#ffffff;color:#000000;caret-color:#000000;"
+            b"font-size:14px;padding:8px;}"
+            b"entry.listo{border:2px solid #2e7d32;}"
+            b"entry.ocupado{border:2px solid #c62828;}"
+            b"entry placeholder{color:#777777;}"
             b"textview, textview text{background:#ffffff;color:#000000;font-size:14px;}")
         Gtk.StyleContext.add_provider_for_screen(
             Gdk.Screen.get_default(), _css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
