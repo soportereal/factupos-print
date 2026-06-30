@@ -56,12 +56,28 @@ LOG_FILE = os.path.join(APP_DIR, 'print_client.log')
 # así que NO se puede usar el flujo de Windows (.exe + updater.bat). En su lugar
 # se reemplaza el propio .py en sitio (el postinst deja /opt/factupos-print en
 # chmod 777 → escribible sin sudo) y el proceso se re-lanza.
-# OJO: el server WS anuncia la versión leyendo el manifest Factupos-Print_version.json
-# (antes print_client_version.json, que queda como alias temporal) y manda un único
-# downloadUrl (el .exe de Windows). En Linux ese downloadUrl se
-# IGNORA y se baja el .py de esta URL fija. El .py publicado acá DEBE ir en la
-# misma versión que el manifest, o el cliente entra en loop de update.
-LINUX_UPDATE_URL = 'https://factupos.com/downloads/factupos_print_client.py'
+# OJO: el server WS anuncia la versión leyendo el manifest print_client_version.json
+# y manda un único downloadUrl (el .exe de Windows). En Linux ese downloadUrl se
+# IGNORA y se baja el .py de estas URLs. El .py publicado DEBE ir en la misma
+# versión que el manifest, o el cliente entra en loop de update.
+# Host ÚNICO = soportereal.com/software/factupos-app/linux/ (todas las apps de
+# FactuPOS se publican ahí). invefacon.com se RETIRÓ de la config (2026-06-30):
+# todo el auto-update apunta solo a soportereal. NOTA de transición: los clientes
+# instalados ANTES de la 4.54 traían invefacon hardcodeado; siguen sirviéndose el
+# .py 4.54 desde factupos.com/downloads (= invefacon, mismo server) para que hagan
+# ESA actualización y queden ya apuntando solo a soportereal. El .py publicado DEBE
+# ir en la misma versión que el manifest, o el cliente entra en loop de update.
+LINUX_UPDATE_URLS = [
+    'https://soportereal.com/software/factupos-app/linux/factupos_print_client.py',
+]
+# Archivo de versión DEDICADO a Linux: la app Linux lo consulta directo (solo
+# soportereal.com), independiente del manifest del WS (que es de Windows). Así se
+# controla la versión Linux por separado de la de Windows. Mismo host que el .py.
+LINUX_VERSION_URLS = [
+    'https://soportereal.com/software/factupos-app/linux/print_client_version_linux.json',
+]
+# Cada cuántos segundos revisa la versión el chequeo periódico (Linux). 600 = 10 min.
+UPDATE_CHECK_INTERVAL = 600
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -114,7 +130,9 @@ except ImportError:
     HAS_TRAY = False
     log.warning("pystray/Pillow no disponible — sin bandeja del sistema")
 
-VERSION = "4.50"  # 4.50: auto-update SOLO si el server reporta version MAYOR (antes era '!=', que hacia downgrade/loop si el manifest quedaba atras). Nuevo helper _version_gt compara por componentes numericos. 4.49: auto-update en LINUX — el .deb instala el .py crudo (no frozen) asi que el flujo Windows (.exe+updater.bat) no aplicaba; ahora en Linux se baja el .py de factupos.com/downloads, se valida version+integridad, se reemplaza en sitio (/opt es 777, sin sudo) y el proceso se re-lanza desacoplado. El server WS no cambia (anuncia latestVersion del manifest); en Linux se ignora el downloadUrl del .exe. AL PUBLICAR: subir el .py a downloads/ en la MISMA version del manifest. 4.48: factura FIPVIVI005 — la etiqueta ORIGINAL/COPIA la decide el SERVIDOR (PHP) y manda un trabajo por hoja con json 'copia_etiqueta' (vacio = sin etiqueta; respeta el parametro 394). La app ya no itera copias ni rotula: imprime lo que le llega. Compat con web vieja (json 'copias' -> itera/rotula). 4.47: formato factura FIPVIVI005 — numeracion "Pagina X de Y", Codigo antes de Cabys, letra mas grande en detalle, "Recibido Conforme"/legal/ORIGINAL no se parte entre hojas (KeepTogether). 4.46: instalador Windows (Inno Setup) — autostart oculto + auto-update sin UAC (icacls Modify); se quitaron los checkboxes Auto-ocultar/Iniciar con el sistema (los maneja el instalador); arranque oculto con flag --hidden. 4.45: paridad con Linux — boton Probar (ticket A/B + cajon + corte), tipo de letra Epson A/B por impresora, look navy + version grande, letra grande. Conserva fix hashlib + barcode128 GDI propios de Windows.
+# VERSION por plataforma (canales independientes): en Linux la app consulta su propio
+# archivo (print_client_version_linux.json en invefacon); en Windows lo anuncia el WS.
+VERSION = ("4.54" if IS_LINUX else "4.51")  # 4.54(linux)/4.51(win): factura FIPVIVI005 — linea "Detalle:" (instrucciones de entrega) ahora 12pt y TODA en negrita (estilo DetalleGrande; antes N8=8pt con solo el rotulo en negrita). Pedido reporte #111 (Cpinto). 4.53(linux)/4.50(win): auto-update SOLO si el server reporta version MAYOR (antes era '!=', que hacia downgrade/loop si el manifest quedaba atras). Nuevo helper _version_gt compara por componentes numericos. 4.49: auto-update en LINUX — el .deb instala el .py crudo (no frozen) asi que el flujo Windows (.exe+updater.bat) no aplicaba; ahora en Linux se baja el .py de factupos.com/downloads, se valida version+integridad, se reemplaza en sitio (/opt es 777, sin sudo) y el proceso se re-lanza desacoplado. El server WS no cambia (anuncia latestVersion del manifest); en Linux se ignora el downloadUrl del .exe. AL PUBLICAR: subir el .py a downloads/ en la MISMA version del manifest. 4.48: factura FIPVIVI005 — la etiqueta ORIGINAL/COPIA la decide el SERVIDOR (PHP) y manda un trabajo por hoja con json 'copia_etiqueta' (vacio = sin etiqueta; respeta el parametro 394). La app ya no itera copias ni rotula: imprime lo que le llega. Compat con web vieja (json 'copias' -> itera/rotula). 4.47: formato factura FIPVIVI005 — numeracion "Pagina X de Y", Codigo antes de Cabys, letra mas grande en detalle, "Recibido Conforme"/legal/ORIGINAL no se parte entre hojas (KeepTogether). 4.46: instalador Windows (Inno Setup) — autostart oculto + auto-update sin UAC (icacls Modify); se quitaron los checkboxes Auto-ocultar/Iniciar con el sistema (los maneja el instalador); arranque oculto con flag --hidden. 4.45: paridad con Linux — boton Probar (ticket A/B + cajon + corte), tipo de letra Epson A/B por impresora, look navy + version grande, letra grande. Conserva fix hashlib + barcode128 GDI propios de Windows.
 def _version_gt(remote, local):
     """True solo si la version 'remote' (la que reporta el server) es ESTRICTAMENTE
     MAYOR que 'local' (la del cliente). Compara por componentes numericos
@@ -978,6 +996,7 @@ def _print_json_datareport_single(json_data, printer_name='', copia_etiqueta='OR
         s('Label', fontSize=7, fontName='Helvetica-Bold', textColor=colors.HexColor('#666'), spaceAfter=0)
         s('CliNombre', fontSize=11, fontName='Helvetica-Bold', spaceAfter=2)
         s('TotalGrande', fontSize=14, fontName='Helvetica-Bold', alignment=TA_RIGHT, spaceBefore=3)
+        s('DetalleGrande', fontSize=12, fontName='Helvetica-Bold', spaceAfter=2, leading=14)
         s('Pie', fontSize=7, fontName='Helvetica', alignment=TA_CENTER, spaceAfter=1)
         s('PieBold', fontSize=8, fontName='Helvetica-Bold', alignment=TA_CENTER, spaceAfter=1)
 
@@ -1424,7 +1443,7 @@ def _print_json_datareport_single(json_data, printer_name='', copia_etiqueta='OR
             el.append(info_t)
             # Detalle del documento debajo
             if documento.get('detalle'):
-                el.append(Paragraph(f"<b>Detalle:</b> {documento['detalle']}", styles['N8']))
+                el.append(Paragraph(f"<b>Detalle:</b> {documento['detalle']}", styles['DetalleGrande']))
             # No usar t_rows para facturas, ya se renderizó con t3
             t_rows = []
 
@@ -2173,10 +2192,15 @@ class PrintQueueClient:
             "queues": queues,
             "clientId": self.client_id,
             "clientVersion": VERSION,
+            "plataforma": "linux" if IS_LINUX else "windows",
             "token": self.token,
         }))
         empresas = set(q.get('empresa', '?') for q in queues)
         self._log(f"Registrando {len(queues)} cola(s) [empresas: {', '.join(empresas)}]")
+        # Linux: chequear actualización al CONECTAR (autónomo, no depende de registrar
+        # colas). Windows: la version la anuncia el server en la respuesta 'registered'.
+        if IS_LINUX:
+            threading.Thread(target=self._check_update_linux, daemon=True).start()
 
     def on_message(self, ws, message):
         try:
@@ -2188,15 +2212,17 @@ class PrintQueueClient:
         action = msg.get('action', '')
         if action == 'registered':
             self._log(f"Registrado OK como '{msg.get('clientId')}'")
-            latest = msg.get('latestVersion', '')
-            download_url = msg.get('downloadUrl', '')
-            # Solo actualizar si el SERVER reporta una version MAYOR que la del cliente
-            # (nunca downgrade ni "distinta" -> evita el loop si el server quedo atras).
-            if latest and download_url and _version_gt(latest, VERSION):
-                self._log(f"Nueva versión disponible: {latest} (actual: {VERSION})")
-                threading.Thread(target=self._auto_update, args=(latest, download_url), daemon=True).start()
-            elif latest and latest != VERSION:
-                self._log(f"Server reporta v{latest} pero el cliente ya está en v{VERSION}; no se actualiza.")
+            # Windows: la version la anuncia el server aquí. (Linux se chequea en on_open.)
+            if not IS_LINUX:
+                latest = msg.get('latestVersion', '')
+                download_url = msg.get('downloadUrl', '')
+                # Solo actualizar si el SERVER reporta una version MAYOR que la del cliente
+                # (nunca downgrade ni "distinta" -> evita el loop si el server quedo atras).
+                if latest and download_url and _version_gt(latest, VERSION):
+                    self._log(f"Nueva versión disponible: {latest} (actual: {VERSION})")
+                    threading.Thread(target=self._auto_update, args=(latest, download_url), daemon=True).start()
+                elif latest and latest != VERSION:
+                    self._log(f"Server reporta v{latest} pero el cliente ya está en v{VERSION}; no se actualiza.")
         elif action == 'print':
             self._handle_print_job(ws, msg)
         elif action == 'ack_received':
@@ -2435,6 +2461,51 @@ del "%~f0"
         except Exception as e:
             self._log(f"Auto-update error: {e}", 'error')
 
+    def _periodic_update_check_loop(self):
+        """Linux: revisa la versión cada UPDATE_CHECK_INTERVAL seg (autónomo)."""
+        while self.running:
+            time.sleep(UPDATE_CHECK_INTERVAL)
+            if self.running and IS_LINUX:
+                self._check_update_linux()
+
+    def manual_check_update(self):
+        """Chequeo manual de actualización (botón de la UI)."""
+        self._update_checked = False
+        if IS_LINUX:
+            self._log("Buscando actualización (Linux)...")
+            threading.Thread(target=self._check_update_linux, daemon=True).start()
+        else:
+            self._log("Windows: la actualización se gestiona al conectar con el servidor.")
+
+    def _check_update_linux(self):
+        """Linux: consulta el archivo de versión DEDICADO (LINUX_VERSION_URLS:
+        solo soportereal.com) y, si hay una versión MAYOR, dispara el auto-update.
+        Independiente del manifest del WS (que es de Windows)."""
+        if self._update_checked:
+            return
+        data = None
+        for url in LINUX_VERSION_URLS:
+            try:
+                with urllib.request.urlopen(url, timeout=15) as resp:
+                    data = json.loads(resp.read().decode('utf-8'))
+                break
+            except Exception as e:
+                self._log(f"Check update Linux: falló {url} ({e}); probando siguiente")
+                continue
+        if not data:
+            self._log("Check update Linux: no se pudo leer el archivo de versión")
+            return
+        latest = str(data.get('version', '')).strip()
+        if latest and _version_gt(latest, VERSION):
+            self._update_checked = True
+            self._log(f"Nueva versión Linux disponible: {latest} (actual: {VERSION})")
+            self._auto_update_linux(latest)
+            # Si _auto_update_linux retornó, es que FALLÓ (en éxito hace os._exit).
+            # Reseteamos para que el chequeo periódico/al-conectar reintente luego.
+            self._update_checked = False
+        elif latest and latest != VERSION:
+            self._log(f"Archivo Linux reporta v{latest}; el cliente ya está en v{VERSION}; no se actualiza.")
+
     def _auto_update_linux(self, new_version):
         """Linux: bajar el .py nuevo, reemplazarlo en sitio y re-lanzar el proceso.
 
@@ -2447,9 +2518,20 @@ del "%~f0"
         script_path = os.path.abspath(__file__)
         target_dir = os.path.dirname(script_path)
         tmp_path = os.path.join(target_dir, 'factupos_print_client_new.py')
-        try:
-            self._log(f"Auto-update Linux: descargando {LINUX_UPDATE_URL} ...")
-            urllib.request.urlretrieve(LINUX_UPDATE_URL, tmp_path)
+
+        # Descarga desde soportereal.com (host único, ver LINUX_UPDATE_URLS). Si no
+        # responde o no entrega un .py válido de la versión anunciada, NO se reemplaza
+        # (se reintenta en el próximo chequeo). La lista admite más URLs si hiciera falta.
+        content = None
+        file_size = 0
+        for url in LINUX_UPDATE_URLS:
+            try:
+                self._log(f"Auto-update Linux: descargando {url} ...")
+                urllib.request.urlretrieve(url, tmp_path)
+            except Exception as e:
+                self._log(f"Auto-update: falló {url} ({e}); probando siguiente", 'error')
+                self._safe_remove(tmp_path)
+                continue
 
             file_size = os.path.getsize(tmp_path)
             with open(tmp_path, 'r', encoding='utf-8', errors='replace') as f:
@@ -2459,9 +2541,10 @@ del "%~f0"
             if (file_size < 50_000 or 'VERSION' not in content
                     or 'def main' not in content
                     or '<html' in content[:500].lower()):
-                self._log(f"Auto-update: descarga inválida ({file_size} bytes), abortando", 'error')
+                self._log(f"Auto-update: descarga inválida desde {url} ({file_size} bytes); probando siguiente", 'error')
                 self._safe_remove(tmp_path)
-                return
+                content = None
+                continue
 
             # Confirmar que la versión bajada coincide con la anunciada (anti-loop)
             downloaded_ver = ''
@@ -2478,10 +2561,19 @@ del "%~f0"
                     break
             if downloaded_ver != new_version:
                 self._log(f"Auto-update: versión bajada '{downloaded_ver}' != anunciada "
-                          f"'{new_version}'; abortando para evitar loop", 'error')
+                          f"'{new_version}' desde {url}; probando siguiente", 'error')
                 self._safe_remove(tmp_path)
-                return
+                content = None
+                continue
 
+            # Descarga válida → dejar de rotar
+            break
+
+        if not content:
+            self._log("Auto-update Linux: ninguna URL entregó un .py válido; abortando", 'error')
+            return
+
+        try:
             self._log(f"Descargado OK ({file_size:,} bytes). Actualizando a v{new_version} y reiniciando...")
             os.replace(tmp_path, script_path)  # atómico (mismo filesystem)
 
@@ -2528,6 +2620,9 @@ del "%~f0"
         self.current_server = self.servers[self.server_index]
 
     def connect(self):
+        # Linux: hilo de chequeo periódico de versión (cada UPDATE_CHECK_INTERVAL).
+        if IS_LINUX:
+            threading.Thread(target=self._periodic_update_check_loop, daemon=True).start()
         while self.running:
             try:
                 self._log(f"Conectando a {self.current_server}...")
@@ -2925,10 +3020,12 @@ class MainWindow:
 
         self._update_counters()
 
-        # Auto-ocultar al iniciar (autostart del instalador pasa --hidden;
-        # abierto a mano desde el menú Inicio = ventana visible)
-        if (self.config.get('autoHide', False) or '--hidden' in sys.argv) and HAS_TRAY:
-            self.root.after(200, self._hide_to_tray)
+        # Siempre arrancar OCULTO en la bandeja (es un servicio): da igual si se abrió
+        # del autostart o a mano del menú. Solo si hay icono de bandeja disponible; si
+        # no lo hay, queda visible para no dejar la app inaccesible. Se restaura con el
+        # menú de la bandeja → "Mostrar".
+        if HAS_TRAY and self.tray_icon:
+            self.root.after(300, self.root.withdraw)
 
     def _build_ui(self):
         apply_navy_theme(self.root)
@@ -3035,6 +3132,7 @@ class MainWindow:
         log_btn_frame = ttk.Frame(log_frame)
         log_btn_frame.pack(fill='x', pady=(5, 0))
         ttk.Button(log_btn_frame, text="Copiar Log", command=self._copy_log).pack(side='right')
+        ttk.Button(log_btn_frame, text="Buscar actualización", command=self._check_update).pack(side='right', padx=(0, 5))
 
         # Tags para colores en log
         self.log_text.tag_configure('error', foreground='#fca5a5')
@@ -3057,6 +3155,11 @@ class MainWindow:
         self.root.clipboard_clear()
         self.root.clipboard_append(text)
         messagebox.showinfo("Copiado", "Log copiado al portapapeles.", parent=self.root)
+
+    def _check_update(self):
+        """Botón: forzar chequeo de actualización."""
+        if getattr(self, 'client', None):
+            self.client.manual_check_update()
 
     def _update_status(self, connected):
         def _do():
